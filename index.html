@@ -178,6 +178,20 @@
 
   .info-note { background: #f0f7ff; border: 1px solid #bee3f8; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #2c5282; margin-bottom: 12px; }
 
+  .yoso-horse-item { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.15s; }
+  .yoso-horse-item:last-child { border-bottom:none; }
+  .yoso-horse-item:hover { background:#f8f9fa; }
+  .yoso-horse-num  { width:26px; height:26px; border-radius:50%; background:var(--bg); color:var(--text-light); font-size:12px; font-weight:bold; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .yoso-horse-body { flex:1; min-width:0; }
+  .yoso-horse-name { font-size:15px; font-weight:bold; }
+  .yoso-memo-tag   { font-size:12px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .yoso-horse-arrow { color:var(--text-light); font-size:20px; flex-shrink:0; }
+  .yoso-memo-section { background:#f8f9fa; border-radius:6px; padding:8px 10px; cursor:pointer; transition:background 0.15s; margin-top:4px; }
+  .yoso-memo-section:hover { background:#eee; }
+  .yoso-memo-section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .yoso-memo-comment { font-size:13px; color:var(--text); line-height:1.55; white-space:pre-wrap; margin-top:4px; }
+  #hm-name[readonly] { background:#f5f5f5; color:var(--text-light); cursor:default; }
+
   @media (max-width: 480px) {
     .form-row { grid-template-columns: 1fr; }
     .stat-grid { grid-template-columns: repeat(2, 1fr); }
@@ -226,6 +240,7 @@
   </div>
   <nav>
     <button class="active" onclick="showPage('races')">レース一覧</button>
+    <button onclick="showPage('yoso')">予想</button>
     <button onclick="showPage('stats')">統計</button>
     <button onclick="showPage('horses')">馬メモ</button>
   </nav>
@@ -376,10 +391,77 @@
 <div id="page-horses" class="page">
   <div class="filter-bar">
     <input type="text" id="horse-search" placeholder="馬名で検索" oninput="renderHorses()">
+    <button class="btn btn-sm" style="background:#eee" onclick="clearHorseSearch()">✕</button>
     <button class="btn btn-primary btn-sm" onclick="openHMModal()">＋ 馬を追加</button>
   </div>
   <div id="horse-list"></div>
   <div style="height:24px"></div>
+</div>
+
+<!-- ===== YOSO PAGE ===== -->
+<div id="page-yoso" class="page">
+  <div class="card">
+    <div class="card-body" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="yoso-race-select" style="flex:1;min-width:200px;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:14px" onchange="selectYosoRace(this.value)">
+        <option value="">-- レースを選択 --</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="openRaceModal()">＋ 新規レース</button>
+    </div>
+  </div>
+
+  <div id="yoso-content" style="display:none">
+    <div class="card">
+      <div class="card-body">
+        <div id="yoso-race-info"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <strong>出走馬入力</strong>
+        <span style="font-size:12px;color:var(--text-light);margin-left:8px">馬名を貼り付けてください（改行・スペース区切り対応）</span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <textarea id="entries-textarea" rows="5" placeholder="ドウデュース&#10;イクイノックス&#10;タスティエーラ&#10;..."></textarea>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="loadEntries(event)">読み込む</button>
+      </div>
+    </div>
+
+    <div id="yoso-horse-list"></div>
+
+    <div class="card">
+      <div class="card-header"><strong>馬券情報</strong></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>馬券の種類</label>
+          <div class="radio-group">
+            <label><input type="radio" name="yb-betType" value="単勝" checked> 単勝</label>
+            <label><input type="radio" name="yb-betType" value="複勝"> 複勝</label>
+            <label><input type="radio" name="yb-betType" value="枠連"> 枠連</label>
+            <label><input type="radio" name="yb-betType" value="馬連"> 馬連</label>
+            <label><input type="radio" name="yb-betType" value="ワイド"> ワイド</label>
+            <label><input type="radio" name="yb-betType" value="馬単"> 馬単</label>
+            <label><input type="radio" name="yb-betType" value="三連複"> 三連複</label>
+            <label><input type="radio" name="yb-betType" value="三連単"> 三連単</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>購入額 (円)</label><input type="number" id="yb-purchase" placeholder="1000" min="0" step="100"></div>
+          <div class="form-group"><label>払戻額 (円)</label><input type="number" id="yb-payout" placeholder="0" min="0" step="10"></div>
+        </div>
+        <div class="form-group"><label>軸馬の着順</label><input type="number" id="yb-pivot-rank" placeholder="未記入" min="1" max="30"></div>
+        <button class="btn btn-primary" id="yoso-bet-save-btn" onclick="saveYosoBet()">馬券を保存</button>
+      </div>
+    </div>
+    <div style="height:24px"></div>
+  </div>
+
+  <div id="yoso-empty" class="empty" style="display:none">
+    <div class="empty-icon">🔍</div>
+    <p>上のセレクタからレースを選択してください</p>
+  </div>
 </div>
 
 <!-- FAB -->
@@ -489,6 +571,30 @@
     </div>
     <div class="modal-body">
       <div id="hm-note" class="info-note" style="display:none"></div>
+
+      <!-- 種類セレクタ（新規追加時のみ表示） -->
+      <div id="hm-type-grp" class="form-group" style="display:none">
+        <label>種類</label>
+        <div class="radio-group">
+          <label><input type="radio" name="hm-type" value="solo" checked onchange="hmTypeChange()"> 単独メモ</label>
+          <label><input type="radio" name="hm-type" value="race" onchange="hmTypeChange()"> レース紐づき</label>
+        </div>
+      </div>
+
+      <!-- レース紐づき設定（レース紐づき選択時のみ表示） -->
+      <div id="hm-race-link-grp" style="display:none">
+        <div class="form-group">
+          <label>レース</label>
+          <select id="hm-race-select" onchange="hmRaceSelectChange()" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:14px"></select>
+        </div>
+        <div id="hm-new-race-grp">
+          <div class="form-row">
+            <div class="form-group"><label>日付 *</label><input type="date" id="hm-race-date"></div>
+            <div class="form-group"><label>レース名（任意）</label><input type="text" id="hm-race-name" placeholder="例：日本ダービー"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="form-group"><label>馬名 *</label><input type="text" id="hm-name" placeholder="例：ディープインパクト"></div>
         <div class="form-group"><label>年齢</label><input type="number" id="hm-age" placeholder="4" min="2" max="10"></div>
@@ -607,6 +713,7 @@ function setupListeners() {
       if (!rReady) { rReady = true; checkReady(); }
       else {
         if (currentPage === 'races') renderRaces();
+        if (currentPage === 'yoso')  renderYoso();
         if (currentPage === 'stats') renderStats();
       }
     },
@@ -699,17 +806,18 @@ function statRow(label, s) {
 // ===== PAGE NAVIGATION =====
 window.showPage = function(p) {
   document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
-  document.querySelectorAll('nav button').forEach((b,i) => b.classList.toggle('active', ['races','stats','horses'][i] === p));
+  document.querySelectorAll('nav button').forEach((b,i) => b.classList.toggle('active', ['races','yoso','stats','horses'][i] === p));
   document.getElementById('page-'+p).classList.add('active');
   document.getElementById('fab-btn').style.display = p==='races' ? '' : 'none';
   currentPage = p;
   if (p==='races')  renderRaces();
+  if (p==='yoso')   renderYoso();
   if (p==='stats')  renderStats();
   if (p==='horses') renderHorses();
 };
 
 // ===== RACES PAGE =====
-function renderRaces() {
+window.renderRaces = function renderRaces() {
   const races  = racesCache;
   const search = document.getElementById('search-input').value.toLowerCase();
   const ySel   = document.getElementById('filter-year');
@@ -758,7 +866,7 @@ function renderRaces() {
 // ===== STATS PAGE =====
 let selectedYear = null, selectedStatTab = 'month';
 
-function renderStats() {
+window.renderStats = function renderStats() {
   const races = racesCache;
   const years = [...new Set(races.map(r => r.date?.slice(0,4)).filter(Boolean))].sort().reverse();
   if (!selectedYear || (!years.includes(selectedYear) && selectedYear !== 'all'))
@@ -914,7 +1022,7 @@ window.resetCF = function() {
 };
 
 // ===== HORSES PAGE =====
-function renderHorses() {
+window.renderHorses = function renderHorses() {
   const races  = racesCache;
   const solos  = horsesCache;
   const search = document.getElementById('horse-search').value.toLowerCase();
@@ -927,10 +1035,17 @@ function renderHorses() {
       ensure(h.name).entries.push({ type:'race', raceId:r.id, raceDate:r.date||'', raceName:r.raceName||'', raceLoc:r.location||'', memo:h });
     });
   });
-  solos.forEach(h => ensure(h.name).entries.push({ type:'solo', soloId:h.id, date:h.date||'', memo:h }));
+  // 同じ馬名・同じ日付の単独メモは統合（コメントが長い方を優先）
+  const soloMap = {};
+  solos.forEach(h => {
+    const key = (h.name||'') + '|' + (h.date||'');
+    if (!soloMap[key] || (h.comment||'').length > (soloMap[key].comment||'').length) soloMap[key] = h;
+  });
+  Object.values(soloMap).forEach(h => ensure(h.name).entries.push({ type:'solo', soloId:h.id, date:h.date||'', memo:h }));
 
   let list = Object.values(map);
-  if (search) list = list.filter(h => h.name.toLowerCase().includes(search));
+  const terms = search.split(/[\s　]+/).filter(Boolean);
+  if (terms.length) list = list.filter(h => terms.every(t => h.name.toLowerCase().includes(t)));
   list.sort((a,b) => a.name.localeCompare(b.name,'ja'));
 
   const el = document.getElementById('horse-list');
@@ -944,15 +1059,16 @@ function renderHorses() {
       const ref    = isSolo
         ? `<span style="color:var(--blue);font-size:11px">📝 単独メモ</span>${e.date?' · '+e.date:''}`
         : `${e.raceDate} ${esc(e.raceLoc)} ${esc(e.raceName)}`;
-      const ctx = isSolo
+      const ctxJson = isSolo
         ? JSON.stringify({ type:'solo', soloId:e.soloId })
         : JSON.stringify({ type:'race', raceId:e.raceId, horseName:h.name });
+      const safeCtx = ctxJson.replace(/"/g, '&quot;');
       return `<div class="horse-entry">
         <div class="horse-entry-body">
           <div class="horse-entry-ref ${isSolo?'horse-entry-solo':'horse-entry-race'}">${ref}</div>
           ${e.memo.comment ? `<div class="horse-entry-text">${esc(e.memo.comment)}</div>` : `<div class="horse-entry-text" style="color:var(--text-light)">（コメントなし）</div>`}
         </div>
-        <button class="btn btn-sm" style="background:#eee;flex-shrink:0" onclick="event.stopPropagation();openEditEntry(${esc(JSON.stringify(ctx))})">編集</button>
+        <button class="btn btn-sm" style="background:#eee;flex-shrink:0" onclick="event.stopPropagation();openEditEntry('${safeCtx}')">編集</button>
       </div>`;
     }).join('');
     return `<div class="card horse-card">
@@ -962,6 +1078,7 @@ function renderHorses() {
           <span class="${gc}" style="font-size:13px;margin-left:8px">${lm.gender||''} ${lm.age?lm.age+'歳':''}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="event.stopPropagation();addMemoToHorse('${esc(h.name).replace(/'/g,'&#39;')}')">＋ 追加</button>
           <span style="font-size:12px;color:var(--text-light)">${h.entries.length}件</span>
           <span style="color:var(--text-light)">▾</span>
         </div>
@@ -970,6 +1087,16 @@ function renderHorses() {
     </div>`;
   }).join('');
 }
+
+window.clearHorseSearch = function() {
+  document.getElementById('horse-search').value = '';
+  renderHorses();
+};
+
+window.addMemoToHorse = function(horseName) {
+  openHMModal(null);
+  document.getElementById('hm-name').value = horseName;
+};
 
 window.openEditEntry = function(ctxJson) {
   const ctx = JSON.parse(ctxJson);
@@ -980,17 +1107,43 @@ window.openEditEntry = function(ctxJson) {
 // ===== HORSE MEMO MODAL =====
 let hmCtx = null;
 
+function hmPopulateRaceSelect() {
+  const sel = document.getElementById('hm-race-select');
+  const sorted = [...racesCache].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  sel.innerHTML = '<option value="new">＋ 新しいレースを作成</option>' +
+    sorted.map(r => `<option value="${r.id}">${r.date||''} ${r.location||''} ${esc(r.raceName||'')}</option>`).join('');
+  sel.value = 'new';
+  document.getElementById('hm-new-race-grp').style.display = '';
+  document.getElementById('hm-race-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('hm-race-name').value = '';
+}
+
+window.hmTypeChange = function() {
+  const isRace = document.querySelector('input[name="hm-type"]:checked')?.value === 'race';
+  document.getElementById('hm-race-link-grp').style.display = isRace ? '' : 'none';
+  document.getElementById('hm-date-grp').style.display      = isRace ? 'none' : '';
+};
+
+window.hmRaceSelectChange = function() {
+  const isNew = document.getElementById('hm-race-select').value === 'new';
+  document.getElementById('hm-new-race-grp').style.display = isNew ? '' : 'none';
+};
+
 window.openHMModal = function(editCtx) {
   hmCtx = editCtx || null;
   const isEdit = !!editCtx;
-  document.getElementById('hm-title').textContent      = isEdit ? '馬メモを編集' : '馬メモを追加';
-  document.getElementById('hm-del-btn').style.display  = isEdit ? '' : 'none';
-  document.getElementById('hm-note').style.display     = 'none';
-  document.getElementById('hm-date-grp').style.display = '';
+  document.getElementById('hm-del-btn').style.display      = 'none';
+  document.getElementById('hm-note').style.display         = 'none';
+  document.getElementById('hm-date-grp').style.display     = '';
+  document.getElementById('hm-type-grp').style.display     = 'none';
+  document.getElementById('hm-race-link-grp').style.display= 'none';
+  document.getElementById('hm-name').readOnly               = false;
 
   if (isEdit && editCtx.type==='solo') {
     const h = horsesCache.find(x => x.id===editCtx.soloId);
     if (!h) return;
+    document.getElementById('hm-title').textContent = '馬メモを編集';
+    document.getElementById('hm-del-btn').style.display = '';
     document.getElementById('hm-name').value    = h.name||'';
     document.getElementById('hm-age').value     = h.age||'';
     document.getElementById('hm-comment').value = h.comment||'';
@@ -1001,22 +1154,35 @@ window.openHMModal = function(editCtx) {
     const race = racesCache.find(r => r.id===editCtx.raceId);
     if (!race) return;
     const memo = (race.horseMemos||[]).find(h => h.name===editCtx.horseName);
-    if (!memo) return;
-    document.getElementById('hm-name').value          = memo.name||'';
-    document.getElementById('hm-age').value           = memo.age||'';
-    document.getElementById('hm-comment').value       = memo.comment||'';
+    document.getElementById('hm-name').value    = editCtx.horseName;
+    document.getElementById('hm-name').readOnly = true;
     document.getElementById('hm-date-grp').style.display = 'none';
     const note = document.getElementById('hm-note');
     note.style.display = '';
     note.textContent   = `レース紐付き: ${race.date||''} ${race.location||''} ${race.raceName||''}`;
-    const g = document.querySelector(`input[name="hm-gender"][value="${memo.gender||'牡'}"]`);
-    if (g) g.checked = true;
+    if (memo) {
+      document.getElementById('hm-title').textContent     = '馬メモを編集';
+      document.getElementById('hm-del-btn').style.display = '';
+      document.getElementById('hm-age').value     = memo.age||'';
+      document.getElementById('hm-comment').value = memo.comment||'';
+      const g = document.querySelector(`input[name="hm-gender"][value="${memo.gender||'牡'}"]`);
+      if (g) g.checked = true;
+    } else {
+      document.getElementById('hm-title').textContent = '馬メモを追加';
+      document.getElementById('hm-age').value     = '';
+      document.getElementById('hm-comment').value = '';
+      document.querySelector('input[name="hm-gender"][value="牡"]').checked = true;
+    }
   } else {
+    document.getElementById('hm-title').textContent = '馬メモを追加';
+    document.getElementById('hm-type-grp').style.display = '';
+    document.querySelector('input[name="hm-type"][value="solo"]').checked = true;
     document.getElementById('hm-name').value    = '';
     document.getElementById('hm-age').value     = '';
     document.getElementById('hm-comment').value = '';
     document.getElementById('hm-date').value    = new Date().toISOString().slice(0,10);
     document.querySelector('input[name="hm-gender"][value="牡"]').checked = true;
+    hmPopulateRaceSelect();
   }
   document.getElementById('hm-modal').classList.add('open');
 };
@@ -1041,13 +1207,41 @@ window.saveHM = async function() {
         updated.horseMemos = [...(updated.horseMemos||[])];
         const idx = updated.horseMemos.findIndex(h => h.name===hmCtx.horseName);
         if (idx !== -1) updated.horseMemos[idx] = { ...updated.horseMemos[idx], name, age, gender, comment };
+        else updated.horseMemos.push({ name: hmCtx.horseName, age, gender, comment });
         await fsSetRace(updated);
       }
     } else if (hmCtx?.type==='solo') {
       const h = horsesCache.find(x => x.id===hmCtx.soloId);
       if (h) await fsSetHorse({ ...h, name, age, gender, comment, date });
     } else {
-      await fsSetHorse({ id: uid(), name, age, gender, comment, date });
+      const hmType = document.querySelector('input[name="hm-type"]:checked')?.value || 'solo';
+      if (hmType === 'race') {
+        const raceId = document.getElementById('hm-race-select').value;
+        if (raceId === 'new') {
+          const raceDate = document.getElementById('hm-race-date').value;
+          if (!raceDate) { alert('日付を入力してください'); return; }
+          const raceName = document.getElementById('hm-race-name').value.trim();
+          await fsSetRace({
+            id: uid(), date: raceDate, raceName,
+            location:'', surface:'芝', distance:null, grade:'',
+            betType:'単勝', purchase:0, payout:0, pivotRank:null,
+            horseMemos: [{ name, age, gender, comment }],
+          });
+        } else {
+          const race = racesCache.find(r => r.id===raceId);
+          if (race) {
+            const updated = { ...race, horseMemos: [...(race.horseMemos||[])] };
+            const idx = updated.horseMemos.findIndex(h => h.name===name);
+            if (idx !== -1) updated.horseMemos[idx] = { ...updated.horseMemos[idx], name, age, gender, comment };
+            else updated.horseMemos.push({ name, age, gender, comment });
+            await fsSetRace(updated);
+          }
+        }
+      } else {
+        const existing = horsesCache.find(h => h.name === name && h.date === date);
+        if (existing) await fsSetHorse({ ...existing, name, age, gender, comment, date });
+        else          await fsSetHorse({ id: uid(), name, age, gender, comment, date });
+      }
     }
     closeHMModal();
   } catch(e) { console.error(e); alert('保存に失敗しました: '+e.message); }
@@ -1069,6 +1263,182 @@ window.deleteHM = function() {
       closeHMModal();
     } catch(e) { console.error(e); alert('削除に失敗しました: '+e.message); }
   });
+};
+
+// ===== YOSO PAGE =====
+let yosoRaceId = null;
+
+window.renderYoso = function renderYoso() {
+  const sel    = document.getElementById('yoso-race-select');
+  const sorted = [...racesCache].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  sel.innerHTML = '<option value="">-- レースを選択 --</option>' +
+    sorted.map(r => `<option value="${r.id}"${r.id===yosoRaceId?' selected':''}>${r.date||''} ${r.location||''} ${esc(r.raceName||'（名前なし）')}</option>`).join('');
+
+  const race    = yosoRaceId ? racesCache.find(r => r.id===yosoRaceId) : null;
+  const content = document.getElementById('yoso-content');
+  const empty   = document.getElementById('yoso-empty');
+  if (!race) {
+    content.style.display = 'none';
+    empty.style.display   = '';
+    return;
+  }
+  content.style.display = '';
+  empty.style.display   = 'none';
+
+  document.getElementById('yoso-race-info').innerHTML = `
+    <div class="race-meta" style="margin-bottom:4px">
+      <span style="font-size:12px;color:var(--text-light)">${race.date||''} ${race.location||''}</span>
+      ${surfBadge(race.surface, race.distance)}
+      ${race.grade ? `<span class="badge badge-grade">${race.grade}</span>` : ''}
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="race-name">${esc(race.raceName)||'（レース名なし）'}</div>
+      <button class="btn btn-ghost btn-sm" onclick="openRaceModal('${race.id}')">編集</button>
+    </div>`;
+
+  document.getElementById('entries-textarea').value = (race.entries||[]).join('\n');
+  renderYosoHorses(race);
+
+  const bt = document.querySelector(`input[name="yb-betType"][value="${race.betType}"]`);
+  (bt || document.querySelector('input[name="yb-betType"][value="単勝"]')).checked = true;
+  document.getElementById('yb-purchase').value   = race.purchase||'';
+  document.getElementById('yb-payout').value     = race.payout||'';
+  document.getElementById('yb-pivot-rank').value = race.pivotRank||'';
+}
+
+function memoSectionHTML(dm, label, colorVar, bgColor, onclickFn) {
+  const gc = dm.gender==='牡'?'g-m':dm.gender==='牝'?'g-f':'g-s';
+  const infoLine = dm.gender
+    ? `<span class="${gc}" style="font-size:12px">${dm.gender}${dm.age?' '+dm.age+'歳':''}</span>`
+    : '';
+  const comment = dm.comment
+    ? `<div class="yoso-memo-comment">${esc(dm.comment)}</div>`
+    : `<div style="font-size:12px;color:var(--text-light);margin-top:2px">（コメントなし）</div>`;
+  return `<div class="yoso-memo-section" onclick="${onclickFn}">
+    <div class="yoso-memo-section-header">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;color:${colorVar};background:${bgColor};border-radius:4px;padding:1px 6px;font-weight:bold">${label}</span>
+        ${infoLine}
+      </div>
+      <span style="color:var(--text-light);font-size:16px">›</span>
+    </div>
+    ${comment}
+  </div>`;
+}
+
+function renderYosoHorses(race) {
+  const entries = race.entries || [];
+  const memos   = race.horseMemos || [];
+  const el      = document.getElementById('yoso-horse-list');
+  if (!entries.length) {
+    el.innerHTML = `<div class="empty" style="padding:24px 16px"><div class="empty-icon" style="font-size:32px">📋</div><p>上の欄に馬名を貼り付けて「読み込む」を押してください</p></div>`;
+    return;
+  }
+  const sorted = entries
+    .map((name, i) => ({ name, i }))
+    .sort((a, b) => {
+      const hasA = memos.some(h=>h.name===a.name) || horsesCache.some(h=>h.name===a.name)
+        || racesCache.some(r=>r.id!==race.id&&(r.horseMemos||[]).some(h=>h.name===a.name));
+      const hasB = memos.some(h=>h.name===b.name) || horsesCache.some(h=>h.name===b.name)
+        || racesCache.some(r=>r.id!==race.id&&(r.horseMemos||[]).some(h=>h.name===b.name));
+      return (hasB?1:0) - (hasA?1:0);
+    });
+
+  el.innerHTML = `<div class="card"><div style="padding:4px 0">` +
+    sorted.map(({ name, i }) => {
+      const memo  = memos.find(h => h.name===name) || null;
+      const solo  = horsesCache.find(h => h.name===name) || null;
+      const past  = racesCache
+        .filter(r => r.id !== race.id)
+        .flatMap(r => (r.horseMemos||[]).filter(h => h.name===name).map(h => ({ memo:h, r })))
+        .sort((a,b) => (b.r.date||'').localeCompare(a.r.date||''));
+      const safeN = esc(name).replace(/'/g,'&#39;');
+
+      const sections = [];
+      if (memo) sections.push(memoSectionHTML(memo, 'このレース', 'var(--green)', '#e8f5ed', `yosoOpenRaceMemo('${safeN}')`));
+      if (solo) sections.push(memoSectionHTML(solo, '単独メモ',   'var(--blue)',  '#e0f0ff', `yosoOpenSoloMemo('${safeN}')`));
+      past.forEach(({ memo:pm, r:pr }) => {
+        const lbl = esc(`${pr.date||''} ${pr.raceName||pr.location||''}`).slice(0,30);
+        sections.push(memoSectionHTML(pm, lbl, 'var(--text-light)', '#f0f0f0', `yosoOpenPastMemo('${pr.id}','${safeN}')`));
+      });
+
+      const addBtns = [];
+      if (!memo) addBtns.push(`<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="event.stopPropagation();yosoOpenRaceMemo('${safeN}')">＋ このレース</button>`);
+      if (!solo) addBtns.push(`<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="event.stopPropagation();yosoOpenSoloMemo('${safeN}')">＋ 単独メモ</button>`);
+
+      return `<div class="yoso-horse-item" style="flex-direction:column;align-items:stretch;cursor:default">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div class="yoso-horse-num">${i+1}</div>
+          <div class="yoso-horse-name">${esc(name)}</div>
+        </div>
+        <div style="padding-left:34px;display:flex;flex-direction:column;gap:6px">
+          ${sections.join('')}
+          ${addBtns.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${addBtns.join('')}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('') +
+    `</div></div>`;
+}
+
+window.selectYosoRace = function(id) {
+  yosoRaceId = id || null;
+  renderYoso();
+};
+
+window.loadEntries = async function(e) {
+  if (!yosoRaceId) return;
+  const raw     = document.getElementById('entries-textarea').value;
+  const entries = raw.split(/[\n\r,、　\s]+/).map(s => s.trim()).filter(Boolean);
+  const race    = racesCache.find(r => r.id===yosoRaceId);
+  if (!race) return;
+  const btn = e.target;
+  btn.disabled = true; btn.textContent = '保存中...';
+  try {
+    await fsSetRace({ ...race, entries });
+  } catch(err) { alert('保存に失敗しました: '+err.message); }
+  finally { btn.disabled = false; btn.textContent = '読み込む'; }
+};
+
+window.yosoOpenRaceMemo = function(name) {
+  if (!yosoRaceId) return;
+  openHMModal({ type:'race', raceId:yosoRaceId, horseName:name });
+};
+
+window.yosoOpenPastMemo = function(raceId, name) {
+  openHMModal({ type:'race', raceId, horseName:name });
+};
+
+window.yosoOpenSoloMemo = function(name) {
+  const solo = horsesCache.find(h => h.name===name);
+  if (solo) {
+    openHMModal({ type:'solo', soloId:solo.id });
+  } else {
+    openHMModal(null);
+    document.getElementById('hm-name').value = name;
+  }
+};
+
+window.saveYosoBet = async function() {
+  if (!yosoRaceId) return;
+  const race = racesCache.find(r => r.id===yosoRaceId);
+  if (!race) return;
+  const pv  = document.getElementById('yb-pivot-rank').value;
+  const btn = document.getElementById('yoso-bet-save-btn');
+  btn.disabled = true; btn.textContent = '保存中...';
+  try {
+    await fsSetRace({
+      ...race,
+      betType:   document.querySelector('input[name="yb-betType"]:checked')?.value||'単勝',
+      purchase:  parseFloat(document.getElementById('yb-purchase').value)||0,
+      payout:    parseFloat(document.getElementById('yb-payout').value)||0,
+      pivotRank: pv ? parseInt(pv) : null,
+    });
+    btn.textContent = '保存しました ✓';
+    setTimeout(() => { btn.disabled=false; btn.textContent='馬券を保存'; }, 1500);
+  } catch(err) {
+    alert('保存に失敗しました: '+err.message);
+    btn.disabled=false; btn.textContent='馬券を保存';
+  }
 };
 
 // ===== RACE MODAL =====
