@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>競馬記録</title>
+<style>
+  :root {
+    --green: #1a7a3a; --green-light: #2a9a4e; --green-dark: #0f5228;
+    --bg: #f5f5f0; --card: #fff; --border: #ddd;
+    --text: #222; --text-light: #666; --red: #c0392b; --blue: #2980b9;
+    --shadow: 0 2px 8px rgba(0,0,0,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Sans','Yu Gothic UI',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header { background: var(--green-dark); color: #fff; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .header-title { padding: 12px 16px 0; font-size: 18px; font-weight: bold; }
+  nav { display: flex; }
+  nav button { flex: 1; padding: 10px 4px; background: none; border: none; color: rgba(255,255,255,0.7); font-size: 13px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+  nav button.active { color: #fff; border-bottom-color: #fff; font-weight: bold; }
+  nav button:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.08); }
+
+  .page { display: none; padding: 16px; max-width: 900px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  .card { background: var(--card); border-radius: 10px; box-shadow: var(--shadow); margin-bottom: 12px; }
+  .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .card-body { padding: 14px 16px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: transform 0.1s; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover { background: var(--green-light); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-ghost { background: transparent; color: var(--green); border: 1.5px solid var(--green); }
+  .btn-ghost:hover { background: var(--green); color: #fff; }
+
+  .fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: var(--green); color: #fff; border: none; font-size: 28px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; transition: background 0.2s, transform 0.1s; z-index: 50; }
+  .fab:hover { background: var(--green-light); }
+  .fab:active { transform: scale(0.93); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+  .badge-turf  { background: #d4edda; color: #1a7a3a; }
+  .badge-dirt  { background: #f5e6d0; color: #8b5e2e; }
+  .badge-jump  { background: #e8d5f0; color: #6b2fa0; }
+  .badge-grade { background: #e8e0f5; color: #5b3fa0; }
+  .badge-bet   { background: #e0f0ff; color: #1a5276; }
+
+  .race-card { cursor: pointer; transition: box-shadow 0.2s; }
+  .race-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+  .race-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .race-name { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+  .race-result { display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap; }
+  .result-item { display: flex; flex-direction: column; }
+  .result-label { font-size: 10px; color: var(--text-light); }
+  .result-value { font-size: 15px; font-weight: bold; }
+  .result-value.positive { color: var(--green); }
+  .result-value.negative { color: var(--red); }
+  .result-value.neutral  { color: var(--text-light); }
+  .hit { color: var(--green); } .miss { color: var(--red); }
+
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .filter-bar input, .filter-bar select { padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; background: #fff; }
+  .filter-bar input { flex: 1; min-width: 140px; }
+
+  /* Stats */
+  .year-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .year-btn { padding: 6px 16px; border: 2px solid var(--green); border-radius: 20px; background: #fff; color: var(--green); font-weight: bold; cursor: pointer; font-size: 13px; }
+  .year-btn.active { background: var(--green); color: #fff; }
+
+  .lifetime-bar { background: var(--green-dark); color: #fff; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 20px; }
+  .lt-item { display: flex; flex-direction: column; }
+  .lt-label { font-size: 10px; opacity: 0.75; margin-bottom: 2px; }
+  .lt-value { font-size: 18px; font-weight: bold; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat-box { background: var(--card); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); text-align: center; }
+  .stat-box .s-label { font-size: 11px; color: var(--text-light); margin-bottom: 3px; }
+  .stat-box .s-value { font-size: 19px; font-weight: bold; }
+
+  .stat-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .stat-tab { padding: 6px 13px; border: 1.5px solid var(--border); border-radius: 20px; background: #fff; color: var(--text-light); font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.15s; }
+  .stat-tab.active { border-color: var(--green); background: var(--green); color: #fff; }
+  .stat-tab:hover:not(.active) { border-color: var(--green); color: var(--green); }
+
+  .month-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .month-table th, .month-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right; }
+  .month-table th:first-child, .month-table td:first-child { text-align: left; }
+  .month-table thead th { background: var(--bg); font-size: 12px; color: var(--text-light); }
+
+  /* Custom filter */
+  .custom-filter { background: #f8f9fa; border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
+  .cf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .cf-grid .form-group { margin-bottom: 0; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; overflow-y: auto; }
+  .modal-overlay.open { display: flex; align-items: flex-start; justify-content: center; padding: 20px 10px; }
+  .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 600px; box-shadow: 0 8px 40px rgba(0,0,0,0.25); }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h2 { font-size: 17px; }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-light); }
+  .modal-body { padding: 20px; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+  /* Form */
+  .form-section { margin-bottom: 18px; }
+  .form-section-title { font-size: 12px; font-weight: bold; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .form-group label { font-size: 12px; color: var(--text-light); font-weight: bold; }
+  .form-group input, .form-group select, .form-group textarea { padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--green); }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+
+  .radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .radio-group label { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 13px; padding: 5px 12px; border: 1.5px solid var(--border); border-radius: 20px; transition: all 0.15s; }
+  .radio-group label:has(input:checked) { border-color: var(--green); background: #e8f5ed; color: var(--green); font-weight: bold; }
+  .radio-group input { display: none; }
+
+  /* Horse rows in race form */
+  .horse-list { display: flex; flex-direction: column; gap: 8px; }
+  .horse-item { background: #f8f9fa; border-radius: 8px; padding: 10px 12px; border: 1px solid var(--border); }
+  .horse-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .horse-item-name { font-weight: bold; font-size: 14px; }
+
+  /* Horses page */
+  .horse-card { transition: box-shadow 0.2s; }
+  .horse-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+  .horse-card-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-bottom: 1px solid transparent; user-select: none; }
+  .horse-card.expanded .horse-card-header { border-bottom-color: var(--border); }
+  .horse-entries { display: none; flex-direction: column; }
+  .horse-card.expanded .horse-entries { display: flex; }
+  .horse-entry { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; }
+  .horse-entry:last-child { border-bottom: none; }
+  .horse-entry-body { flex: 1; min-width: 0; }
+  .horse-entry-ref  { font-size: 12px; color: var(--text-light); margin-bottom: 3px; }
+  .horse-entry-text { font-size: 14px; }
+  .horse-entry-race { border-left: 3px solid var(--green); padding-left: 8px; }
+  .horse-entry-solo { border-left: 3px solid var(--blue);  padding-left: 8px; }
+  .g-m { color: #2980b9; } .g-f { color: #c0392b; } .g-s { color: #7f8c8d; }
+
+  /* Rank */
+  .rank-badge { display: inline-block; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: bold; }
+  .rank-1 { background: #ffd700; color: #7a5000; }
+  .rank-2 { background: #c0c0c0; color: #444; }
+  .rank-3 { background: #cd7f32; color: #fff; }
+  .rank-other { background: #eee; color: #666; }
+
+  .empty { text-align: center; padding: 48px 16px; color: var(--text-light); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty p { font-size: 15px; }
+
+  .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; align-items: center; justify-content: center; }
+  .confirm-overlay.open { display: flex; }
+  .confirm-box { background: #fff; border-radius: 12px; padding: 24px; max-width: 320px; width: 90%; text-align: center; }
+  .confirm-box p { margin-bottom: 20px; font-size: 15px; }
+  .confirm-buttons { display: flex; gap: 10px; justify-content: center; }
+
+  .info-note { background: #f0f7ff; border: 1px solid #bee3f8; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #2c5282; margin-bottom: 12px; }
+
+  @media (max-width: 480px) {
+    .form-row { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .cf-grid   { grid-template-columns: 1fr 1fr; }
+    .race-result { gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">🏇 競馬記録</div>
+  <nav>
+    <button class="active" onclick="showPage('races')">レース一覧</button>
+    <button onclick="showPage('stats')">統計</button>
+    <button onclick="showPage('horses')">馬メモ</button>
+  </nav>
+</header>
+
+<!-- RACES PAGE -->
+<div id="page-races" class="page active">
+  <div class="filter-bar">
+    <input type="text" id="search-input" placeholder="レース名・場所で検索" oninput="renderRaces()">
+    <select id="filter-year" onchange="renderRaces()"><option value="">全年</option></select>
+    <select id="filter-surface" onchange="renderRaces()">
+      <option value="">コース全て</option>
+      <option value="芝">芝</option>
+      <option value="ダート">ダート</option>
+      <option value="障害">障害</option>
+    </select>
+  </div>
+  <div id="race-list"></div>
+  <div style="height:80px"></div>
+</div>
+
+<!-- STATS PAGE -->
+<div id="page-stats" class="page">
+  <div class="lifetime-bar" id="lifetime-bar"></div>
+  <div class="year-selector" id="year-selector"></div>
+  <div class="stat-grid" id="stat-grid"></div>
+  <div class="stat-tabs">
+    <button class="stat-tab active" onclick="selectStatTab('month')">月別</button>
+    <button class="stat-tab" onclick="selectStatTab('venue')">競馬場別</button>
+    <button class="stat-tab" onclick="selectStatTab('grade')">グレード別</button>
+    <button class="stat-tab" onclick="selectStatTab('dist')">距離別</button>
+    <button class="stat-tab" onclick="selectStatTab('g1turf')">国内芝G1</button>
+    <button class="stat-tab" onclick="selectStatTab('custom')">カスタム</button>
+  </div>
+
+  <div class="card" id="stat-tab-month">
+    <div class="card-header"><strong>月別集計</strong></div>
+    <div class="card-body" style="overflow-x:auto">
+      <table class="month-table">
+        <thead><tr><th>月</th><th>支出</th><th>払戻</th><th>収支</th><th>回収率</th><th>的中</th></tr></thead>
+        <tbody id="month-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" id="stat-tab-venue" style="display:none">
+    <div class="card-header"><strong>競馬場別集計</strong></div>
+    <div class="card-body" style="overflow-x:auto">
+      <table class="month-table">
+        <thead><tr><th>競馬場</th><th>支出</th><th>払戻</th><th>収支</th><th>回収率</th><th>的中</th></tr></thead>
+        <tbody id="venue-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" id="stat-tab-grade" style="display:none">
+    <div class="card-header"><strong>グレード別集計</strong></div>
+    <div class="card-body" style="overflow-x:auto">
+      <table class="month-table">
+        <thead><tr><th>グレード</th><th>支出</th><th>払戻</th><th>収支</th><th>回収率</th><th>的中</th></tr></thead>
+        <tbody id="grade-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" id="stat-tab-dist" style="display:none">
+    <div class="card-header"><strong>距離別集計</strong></div>
+    <div class="card-body" style="overflow-x:auto">
+      <table class="month-table">
+        <thead><tr><th>距離</th><th>支出</th><th>払戻</th><th>収支</th><th>回収率</th><th>的中</th></tr></thead>
+        <tbody id="dist-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" id="stat-tab-g1turf" style="display:none">
+    <div class="card-header"><strong>国内芝G1 集計</strong></div>
+    <div class="stat-grid" id="g1turf-grid" style="padding:14px 16px 0"></div>
+    <div class="card-body" style="overflow-x:auto">
+      <table class="month-table">
+        <thead><tr><th>レース</th><th>支出</th><th>払戻</th><th>収支</th><th>回収率</th><th>結果</th></tr></thead>
+        <tbody id="g1turf-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="stat-tab-custom" style="display:none">
+    <div class="custom-filter">
+      <div style="font-size:13px;font-weight:bold;margin-bottom:10px">絞り込み条件</div>
+      <div class="cf-grid">
+        <div class="form-group">
+          <label>開始年</label>
+          <select id="cf-y1"><option value="">指定なし</option></select>
+        </div>
+        <div class="form-group">
+          <label>終了年</label>
+          <select id="cf-y2"><option value="">指定なし</option></select>
+        </div>
+        <div class="form-group">
+          <label>競馬場</label>
+          <select id="cf-loc">
+            <option value="">指定なし</option>
+            <optgroup label="中央">
+              <option>東京</option><option>中山</option><option>阪神</option><option>京都</option>
+              <option>中京</option><option>新潟</option><option>函館</option><option>札幌</option>
+              <option>福島</option><option>小倉</option>
+            </optgroup>
+            <optgroup label="まとめ">
+              <option value="__chiho__">地方（全て）</option>
+              <option value="__kaigai__">海外（全て）</option>
+            </optgroup>
+            <optgroup label="地方（個別）">
+              <option>大井</option><option>川崎</option><option>浦和</option><option>船橋</option>
+              <option>金沢</option><option>笠松</option><option>名古屋</option><option>園田</option>
+              <option>姫路</option><option>高知</option><option>佐賀</option><option>帯広</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>コース</label>
+          <select id="cf-surf">
+            <option value="">指定なし</option>
+            <option>芝</option><option>ダート</option><option>障害</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>グレード</label>
+          <select id="cf-grade">
+            <option value="">指定なし</option>
+            <option>G1</option><option>G2</option><option>G3</option>
+            <option>リステッド</option><option>オープン</option>
+            <option>3勝クラス</option><option>2勝クラス</option><option>1勝クラス</option>
+            <option>未勝利</option><option>新馬</option><option>地方</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>距離区分</label>
+          <select id="cf-dist">
+            <option value="">指定なし</option>
+            <option value="s">〜1600m</option>
+            <option value="m">1601〜2000m</option>
+            <option value="l">2001〜2400m</option>
+            <option value="xl">2401m〜</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>馬券種別</label>
+          <select id="cf-bet">
+            <option value="">指定なし</option>
+            <option>単勝</option><option>複勝</option><option>枠連</option><option>馬連</option>
+            <option>ワイド</option><option>馬単</option><option>三連複</option><option>三連単</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px;text-align:right;display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-sm" style="background:#eee" onclick="resetCF()">リセット</button>
+        <button class="btn btn-primary btn-sm" onclick="applyCF()">集計</button>
+      </div>
+    </div>
+    <div id="cf-result"></div>
+  </div>
+</div>
+
+<!-- HORSES PAGE -->
+<div id="page-horses" class="page">
+  <div class="filter-bar">
+    <input type="text" id="horse-search" placeholder="馬名で検索" oninput="renderHorses()">
+    <button class="btn btn-primary btn-sm" onclick="openHMModal()">＋ 馬を追加</button>
+  </div>
+  <div id="horse-list"></div>
+  <div style="height:24px"></div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab-btn" onclick="openRaceModal()" title="レースを追加">＋</button>
+
+<!-- RACE MODAL -->
+<div class="modal-overlay" id="race-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">レースを追加</h2>
+      <button class="modal-close" onclick="closeRaceModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section">
+        <div class="form-section-title">レース情報</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>日付 *</label>
+            <input type="date" id="f-date">
+          </div>
+          <div class="form-group">
+            <label>場所</label>
+            <select id="f-location">
+              <optgroup label="中央">
+                <option>東京</option><option>中山</option><option>阪神</option><option>京都</option>
+                <option>中京</option><option>新潟</option><option>函館</option><option>札幌</option>
+                <option>福島</option><option>小倉</option>
+              </optgroup>
+              <optgroup label="地方">
+                <option>大井</option><option>川崎</option><option>浦和</option><option>船橋</option>
+                <option>金沢</option><option>笠松</option><option>名古屋</option><option>園田</option>
+                <option>姫路</option><option>高知</option><option>佐賀</option><option>帯広</option>
+              </optgroup>
+              <optgroup label="海外">
+                <option>ロンシャン</option><option>アスコット</option><option>ニューマーケット</option>
+                <option>エプソム</option><option>グッドウッド</option><option>サンダウン</option>
+                <option>チャーチル</option><option>ベルモントパーク</option><option>サンタアニタ</option>
+                <option>ケンタッキー</option><option>メイダン</option><option>シャティン</option>
+                <option>フレミントン</option><option>ムーニーバレー</option><option>ナッドアルシバ</option>
+                <option>海外その他</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>コース</label>
+          <div class="radio-group">
+            <label><input type="radio" name="surface" value="芝" checked> 芝</label>
+            <label><input type="radio" name="surface" value="ダート"> ダート</label>
+            <label><input type="radio" name="surface" value="障害"> 障害</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>距離 (m)</label>
+            <input type="number" id="f-distance" placeholder="1600" min="800" max="8000" step="100">
+          </div>
+          <div class="form-group">
+            <label>グレード</label>
+            <select id="f-grade">
+              <option>G1</option><option>G2</option><option>G3</option>
+              <option>リステッド</option><option>オープン</option>
+              <option>3勝クラス</option><option>2勝クラス</option><option>1勝クラス</option>
+              <option>未勝利</option><option>新馬</option><option>地方</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>レース名</label>
+          <input type="text" id="f-race-name" placeholder="例：日本ダービー">
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">馬券情報</div>
+        <div class="form-group">
+          <label>馬券の種類</label>
+          <div class="radio-group">
+            <label><input type="radio" name="betType" value="単勝" checked> 単勝</label>
+            <label><input type="radio" name="betType" value="複勝"> 複勝</label>
+            <label><input type="radio" name="betType" value="枠連"> 枠連</label>
+            <label><input type="radio" name="betType" value="馬連"> 馬連</label>
+            <label><input type="radio" name="betType" value="ワイド"> ワイド</label>
+            <label><input type="radio" name="betType" value="馬単"> 馬単</label>
+            <label><input type="radio" name="betType" value="三連複"> 三連複</label>
+            <label><input type="radio" name="betType" value="三連単"> 三連単</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>購入額 (円)</label>
+            <input type="number" id="f-purchase" placeholder="1000" min="0" step="100">
+          </div>
+          <div class="form-group">
+            <label>払戻額 (円)</label>
+            <input type="number" id="f-payout" placeholder="0" min="0" step="10">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>軸馬の着順</label>
+          <input type="number" id="f-pivot-rank" placeholder="未記入" min="1" max="30">
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">
+          馬メモ
+          <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="addHorseRow()">＋ 馬を追加</button>
+        </div>
+        <div class="horse-list" id="horse-rows"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="delete-btn" onclick="deleteCurrentRace()" style="margin-right:auto;display:none">削除</button>
+      <button class="btn" style="background:#eee" onclick="closeRaceModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveRace()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- HORSE MEMO MODAL -->
+<div class="modal-overlay" id="hm-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 id="hm-title">馬メモを追加</h2>
+      <button class="modal-close" onclick="closeHMModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="hm-note" class="info-note" style="display:none"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>馬名 *</label>
+          <input type="text" id="hm-name" placeholder="例：ディープインパクト">
+        </div>
+        <div class="form-group">
+          <label>年齢</label>
+          <input type="number" id="hm-age" placeholder="4" min="2" max="10">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>牡牝</label>
+        <div class="radio-group">
+          <label><input type="radio" name="hm-gender" value="牡" checked> 牡</label>
+          <label><input type="radio" name="hm-gender" value="牝"> 牝</label>
+          <label><input type="radio" name="hm-gender" value="セン"> セン</label>
+        </div>
+      </div>
+      <div class="form-group" id="hm-date-grp">
+        <label>日付</label>
+        <input type="date" id="hm-date">
+      </div>
+      <div class="form-group">
+        <label>コメント</label>
+        <textarea id="hm-comment" rows="4" placeholder="メモを入力..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="hm-del-btn" style="margin-right:auto;display:none" onclick="deleteHM()">削除</button>
+      <button class="btn" style="background:#eee" onclick="closeHMModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveHM()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <p id="confirm-msg">削除しますか？</p>
+    <div class="confirm-buttons">
+      <button class="btn" style="background:#eee" onclick="closeConfirm()">キャンセル</button>
+      <button class="btn btn-danger" id="confirm-ok">削除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const RACE_KEY  = 'keiba_races_v2';
+const HORSE_KEY = 'keiba_horses_v1';
+const loadRaces  = () => { try { return JSON.parse(localStorage.getItem(RACE_KEY))  || []; } catch { return []; } };
+const saveRaces  = d  => localStorage.setItem(RACE_KEY,  JSON.stringify(d));
+const loadHorses = () => { try { return JSON.parse(localStorage.getItem(HORSE_KEY)) || []; } catch { return []; } };
+const saveHorses = d  => localStorage.setItem(HORSE_KEY, JSON.stringify(d));
+
+// ===== UTILS =====
+const uid    = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+const fmt    = n  => (n == null || n === '') ? '—' : Number(n).toLocaleString() + '円';
+const fmtN   = n  => (n == null || n === '') ? '—' : Number(n).toLocaleString();
+const fmtPct = n  => (n == null || isNaN(n)) ? '—' : n.toFixed(1) + '%';
+const esc    = s  => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+const CHUO  = new Set(['東京','中山','阪神','京都','中京','新潟','函館','札幌','福島','小倉']);
+const CHIHO = new Set(['大井','川崎','浦和','船橋','金沢','笠松','名古屋','園田','姫路','高知','佐賀','帯広']);
+const DIST_BANDS = [
+  { key:'s',  label:'〜1600m',     test: d => d <= 1600 },
+  { key:'m',  label:'1601〜2000m', test: d => d >= 1601 && d <= 2000 },
+  { key:'l',  label:'2001〜2400m', test: d => d >= 2001 && d <= 2400 },
+  { key:'xl', label:'2401m〜',     test: d => d >= 2401 },
+];
+const GRADE_ORDER = ['G1','G2','G3','リステッド','オープン','3勝クラス','2勝クラス','1勝クラス','未勝利','新馬','地方'];
+
+function vg(loc) {
+  if (CHUO.has(loc))  return loc;
+  if (CHIHO.has(loc)) return '地方';
+  return '海外';
+}
+function surfBadge(s, d) {
+  if (!s) return '';
+  const cls = s === '芝' ? 'badge-turf' : s === 'ダート' ? 'badge-dirt' : 'badge-jump';
+  return `<span class="badge ${cls}">${s}${d ? d + 'm' : ''}</span>`;
+}
+function makeStat(races) {
+  const purchase = races.reduce((s, r) => s + (r.purchase || 0), 0);
+  const payout   = races.reduce((s, r) => s + (r.payout   || 0), 0);
+  const hits     = races.filter(r => (r.payout || 0) > 0).length;
+  return { purchase, payout, bal: payout - purchase, rr: purchase ? payout / purchase * 100 : null, hits, total: races.length };
+}
+function statBoxesHTML(items) {
+  return items.map(x => `<div class="stat-box"><div class="s-label">${x.label}</div><div class="s-value" style="color:${x.color||''}">${x.value}</div></div>`).join('');
+}
+function statRow(label, s) {
+  if (!s.total) return `<tr><td>${label}</td><td colspan="5" style="color:var(--text-light);text-align:center">—</td></tr>`;
+  const b = s.bal, rr = s.rr;
+  return `<tr>
+    <td>${label}</td>
+    <td>${fmtN(s.purchase)}円</td><td>${fmtN(s.payout)}円</td>
+    <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}円</td>
+    <td style="color:${rr!=null?(rr>=100?'var(--green)':'var(--red)'):'inherit'}">${fmtPct(rr)}</td>
+    <td>${s.hits}/${s.total}</td>
+  </tr>`;
+}
+
+// ===== NAVIGATION =====
+let currentPage = 'races';
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach((b, i) => b.classList.toggle('active', ['races','stats','horses'][i] === p));
+  document.getElementById('page-' + p).classList.add('active');
+  document.getElementById('fab-btn').style.display = p === 'races' ? '' : 'none';
+  currentPage = p;
+  if (p === 'races')  renderRaces();
+  if (p === 'stats')  renderStats();
+  if (p === 'horses') renderHorses();
+}
+
+// ===== RACES PAGE =====
+function renderRaces() {
+  const races = loadRaces();
+  const search  = document.getElementById('search-input').value.toLowerCase();
+  const ySel    = document.getElementById('filter-year');
+  const years   = [...new Set(races.map(r => r.date?.slice(0,4)).filter(Boolean))].sort().reverse();
+  const curY    = ySel.value;
+  ySel.innerHTML = '<option value="">全年</option>' + years.map(y => `<option value="${y}"${y===curY?' selected':''}>${y}年</option>`).join('');
+  const yf = ySel.value;
+  const sf = document.getElementById('filter-surface').value;
+
+  let list = races.filter(r => {
+    if (search && !((r.raceName||'').toLowerCase().includes(search) || (r.location||'').toLowerCase().includes(search))) return false;
+    if (yf && r.date?.slice(0,4) !== yf) return false;
+    if (sf && r.surface !== sf) return false;
+    return true;
+  }).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  const el = document.getElementById('race-list');
+  if (!list.length) { el.innerHTML = `<div class="empty"><div class="empty-icon">🏇</div><p>レースがありません<br>＋ボタンで追加しましょう</p></div>`; return; }
+  el.innerHTML = list.map(r => {
+    const bal = (r.payout||0) - (r.purchase||0);
+    const hit = (r.payout||0) > 0;
+    const pr  = r.pivotRank;
+    const rb  = pr ? `<span class="rank-badge ${pr===1?'rank-1':pr===2?'rank-2':pr===3?'rank-3':'rank-other'}">${pr}</span>` : '';
+    return `<div class="card race-card" onclick="openRaceModal('${r.id}')">
+      <div class="card-body">
+        <div class="race-meta" style="margin-bottom:6px">
+          <span style="font-size:12px;color:var(--text-light)">${r.date||''} ${r.location||''}</span>
+          ${surfBadge(r.surface, r.distance)}
+          ${r.grade   ? `<span class="badge badge-grade">${r.grade}</span>`   : ''}
+          ${r.betType ? `<span class="badge badge-bet">${r.betType}</span>`   : ''}
+        </div>
+        <div class="race-name">${esc(r.raceName) || '（レース名なし）'}</div>
+        <div class="race-result">
+          <div class="result-item"><span class="result-label">購入</span><span class="result-value">${fmtN(r.purchase||0)}円</span></div>
+          <div class="result-item"><span class="result-label">払戻</span><span class="result-value ${hit?'positive':'neutral'}">${fmtN(r.payout||0)}円</span></div>
+          <div class="result-item"><span class="result-label">収支</span><span class="result-value ${bal>0?'positive':bal<0?'negative':'neutral'}">${bal>=0?'+':''}${fmtN(bal)}円</span></div>
+          <div class="result-item"><span class="result-label">結果</span><span class="result-value ${hit?'hit':'miss'}">${hit?'的中':'外れ'}</span></div>
+          ${pr ? `<div class="result-item"><span class="result-label">軸馬</span><span class="result-value">${rb}</span></div>` : ''}
+        </div>
+        ${r.horseMemos?.length ? `<div style="margin-top:6px;font-size:12px;color:var(--text-light)">🐴 ${r.horseMemos.map(h=>esc(h.name)).join('、')}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== STATS PAGE =====
+let selectedYear = null, selectedStatTab = 'month';
+
+function renderStats() {
+  const races = loadRaces();
+  const years = [...new Set(races.map(r => r.date?.slice(0,4)).filter(Boolean))].sort().reverse();
+  if (!selectedYear || (!years.includes(selectedYear) && selectedYear !== 'all'))
+    selectedYear = years[0] || String(new Date().getFullYear());
+
+  // 生涯バー
+  const lt = makeStat(races);
+  const ltPW = races.filter(r => r.pivotRank != null && r.pivotRank !== '');
+  const ltPR = ltPW.length ? ltPW.filter(r => r.pivotRank <= 3).length / ltPW.length * 100 : null;
+  document.getElementById('lifetime-bar').innerHTML = `
+    <div class="lt-item"><div class="lt-label">生涯回収率</div><div class="lt-value" style="color:${lt.rr!=null?(lt.rr>=100?'#a8ffb8':'#ffaaaa'):'#fff'}">${fmtPct(lt.rr)}</div></div>
+    <div class="lt-item"><div class="lt-label">生涯収支</div><div class="lt-value" style="color:${lt.bal>0?'#a8ffb8':lt.bal<0?'#ffaaaa':'#fff'}">${lt.bal>=0?'+':''}${fmt(lt.bal)}</div></div>
+    <div class="lt-item"><div class="lt-label">総レース数</div><div class="lt-value">${lt.total}戦</div></div>
+    <div class="lt-item"><div class="lt-label">生涯的中率</div><div class="lt-value">${fmtPct(lt.total ? lt.hits/lt.total*100 : null)}</div></div>
+    <div class="lt-item"><div class="lt-label">軸馬好走率(生涯)</div><div class="lt-value">${fmtPct(ltPR)}</div></div>`;
+
+  // 年ボタン
+  document.getElementById('year-selector').innerHTML =
+    `<button class="year-btn ${selectedYear==='all'?'active':''}" onclick="selectYear('all')">全期間</button>` +
+    years.map(y => `<button class="year-btn ${y===selectedYear?'active':''}" onclick="selectYear('${y}')">${y}年</button>`).join('');
+
+  // カスタムフィルタの年プルダウン更新
+  const opts = '<option value="">指定なし</option>' + years.map(y=>`<option>${y}</option>`).join('');
+  const cf1 = document.getElementById('cf-y1'), cf2 = document.getElementById('cf-y2');
+  const v1 = cf1.value, v2 = cf2.value;
+  cf1.innerHTML = opts; cf2.innerHTML = opts;
+  if (v1) cf1.value = v1; if (v2) cf2.value = v2;
+
+  const yr = selectedYear === 'all' ? races : races.filter(r => r.date?.startsWith(selectedYear));
+  calcStats(yr);
+}
+
+function selectYear(y) { selectedYear = y; renderStats(); }
+
+function selectStatTab(t) {
+  selectedStatTab = t;
+  const keys = ['month','venue','grade','dist','g1turf','custom'];
+  document.querySelectorAll('.stat-tab').forEach((b, i) => b.classList.toggle('active', keys[i] === t));
+  keys.forEach(k => document.getElementById('stat-tab-' + k).style.display = k === t ? '' : 'none');
+}
+
+function calcStats(races) {
+  const s = makeStat(races);
+  const rpv = races.filter(r => r.pivotRank != null && r.pivotRank !== '');
+  const pivotRate = rpv.length ? rpv.filter(r => r.pivotRank <= 3).length / rpv.length * 100 : null;
+  const hitRate   = s.total ? s.hits / s.total * 100 : null;
+
+  document.getElementById('stat-grid').innerHTML = statBoxesHTML([
+    { label:'支出',       value: fmt(s.purchase) },
+    { label:'払戻',       value: fmt(s.payout),   color: s.payout>0?'var(--green)':'' },
+    { label:'収支',       value: (s.bal>=0?'+':'')+fmt(s.bal), color: s.bal>0?'var(--green)':s.bal<0?'var(--red)':'' },
+    { label:'回収率',     value: fmtPct(s.rr),    color: s.rr!=null?(s.rr>=100?'var(--green)':'var(--red)'):'' },
+    { label:'的中率',     value: fmtPct(hitRate) },
+    { label:'軸馬好走率', value: fmtPct(pivotRate) },
+    { label:'レース数',   value: s.total + '戦' },
+    { label:'的中数',     value: s.hits + '回' },
+  ]);
+
+  // 月別
+  const months = {};
+  for (let m = 1; m <= 12; m++) months[String(m).padStart(2,'0')] = [];
+  races.forEach(r => { const m = r.date?.slice(5,7); if (m && months[m]) months[m].push(r); });
+  document.getElementById('month-tbody').innerHTML = Object.entries(months).map(([m, rs]) => statRow(parseInt(m)+'月', makeStat(rs))).join('');
+
+  // 競馬場別
+  const vm = {};
+  races.forEach(r => { const g = vg(r.location||''); if (!vm[g]) vm[g]=[]; vm[g].push(r); });
+  document.getElementById('venue-tbody').innerHTML = [...CHUO, '地方','海外'].filter(v => vm[v]).map(v => statRow(v, makeStat(vm[v]))).join('');
+
+  // グレード別
+  const gm = {};
+  races.forEach(r => { const g = r.grade||''; if (!gm[g]) gm[g]=[]; gm[g].push(r); });
+  document.getElementById('grade-tbody').innerHTML = GRADE_ORDER.filter(g => gm[g]).map(g => statRow(g, makeStat(gm[g]))).join('');
+
+  // 距離別
+  document.getElementById('dist-tbody').innerHTML = DIST_BANDS.map(b => statRow(b.label, makeStat(races.filter(r => r.distance && b.test(r.distance))))).join('');
+
+  // 国内芝G1
+  const g1 = races.filter(r => r.surface==='芝' && r.grade==='G1' && CHUO.has(r.location));
+  const sg1 = makeStat(g1);
+  document.getElementById('g1turf-grid').innerHTML = statBoxesHTML([
+    { label:'支出',    value: fmt(sg1.purchase) },
+    { label:'払戻',    value: fmt(sg1.payout),  color: sg1.payout>0?'var(--green)':'' },
+    { label:'収支',    value: (sg1.bal>=0?'+':'')+fmt(sg1.bal), color: sg1.bal>0?'var(--green)':sg1.bal<0?'var(--red)':'' },
+    { label:'回収率',  value: fmtPct(sg1.rr),   color: sg1.rr!=null?(sg1.rr>=100?'var(--green)':'var(--red)'):'' },
+    { label:'的中率',  value: fmtPct(sg1.total ? sg1.hits/sg1.total*100 : null) },
+    { label:'レース数',value: sg1.total + '戦' },
+  ]);
+  document.getElementById('g1turf-tbody').innerHTML = g1.length
+    ? g1.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(r => {
+        const b=(r.payout||0)-(r.purchase||0), hit=(r.payout||0)>0;
+        return `<tr>
+          <td style="text-align:left">${r.date||''} ${esc(r.raceName||r.location||'')}</td>
+          <td>${fmtN(r.purchase||0)}円</td><td>${fmtN(r.payout||0)}円</td>
+          <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}円</td>
+          <td style="color:${r.purchase?((r.payout||0)/r.purchase>=1?'var(--green)':'var(--red)'):'inherit'}">${r.purchase?fmtPct((r.payout||0)/r.purchase*100):'—'}</td>
+          <td style="color:${hit?'var(--green)':'var(--red)'}">${hit?'的中':'外れ'}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--text-light)">該当レースなし</td></tr>`;
+}
+
+// ===== CUSTOM FILTER =====
+function applyCF() {
+  const races = loadRaces();
+  const y1 = document.getElementById('cf-y1').value;
+  const y2 = document.getElementById('cf-y2').value;
+  const lv = document.getElementById('cf-loc').value;
+  const sv = document.getElementById('cf-surf').value;
+  const gv = document.getElementById('cf-grade').value;
+  const dv = document.getElementById('cf-dist').value;
+  const bv = document.getElementById('cf-bet').value;
+  const db = dv ? DIST_BANDS.find(b => b.key === dv) : null;
+
+  const f = races.filter(r => {
+    const yr = r.date?.slice(0,4) || '';
+    if (y1 && yr < y1) return false;
+    if (y2 && yr > y2) return false;
+    if (lv === '__chiho__'  && !CHIHO.has(r.location)) return false;
+    if (lv === '__kaigai__' && vg(r.location) !== '海外') return false;
+    if (lv && lv !== '__chiho__' && lv !== '__kaigai__' && r.location !== lv) return false;
+    if (sv && r.surface  !== sv) return false;
+    if (gv && r.grade    !== gv) return false;
+    if (bv && r.betType  !== bv) return false;
+    if (db && (!r.distance || !db.test(r.distance))) return false;
+    return true;
+  });
+
+  const s = makeStat(f);
+  const rpv = f.filter(r => r.pivotRank != null && r.pivotRank !== '');
+  const pivotRate = rpv.length ? rpv.filter(r=>r.pivotRank<=3).length/rpv.length*100 : null;
+  const hitRate   = s.total ? s.hits/s.total*100 : null;
+
+  document.getElementById('cf-result').innerHTML = `
+    <div class="stat-grid">${statBoxesHTML([
+      { label:'支出',       value: fmt(s.purchase) },
+      { label:'払戻',       value: fmt(s.payout),  color: s.payout>0?'var(--green)':'' },
+      { label:'収支',       value: (s.bal>=0?'+':'')+fmt(s.bal), color: s.bal>0?'var(--green)':s.bal<0?'var(--red)':'' },
+      { label:'回収率',     value: fmtPct(s.rr),   color: s.rr!=null?(s.rr>=100?'var(--green)':'var(--red)'):'' },
+      { label:'的中率',     value: fmtPct(hitRate) },
+      { label:'軸馬好走率', value: fmtPct(pivotRate) },
+      { label:'レース数',   value: s.total+'戦' },
+      { label:'的中数',     value: s.hits+'回' },
+    ])}</div>
+    <div class="card">
+      <div class="card-header"><strong>該当レース（${f.length}件）</strong></div>
+      <div class="card-body" style="overflow-x:auto">
+        <table class="month-table">
+          <thead><tr><th>日付</th><th>レース</th><th>支出</th><th>払戻</th><th>収支</th><th>結果</th></tr></thead>
+          <tbody>${f.length ? f.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(r => {
+            const b=(r.payout||0)-(r.purchase||0), hit=(r.payout||0)>0;
+            return `<tr>
+              <td style="text-align:left;white-space:nowrap">${r.date||''}</td>
+              <td style="text-align:left">${esc(r.raceName||'')} <span style="color:var(--text-light)">${r.location||''}</span></td>
+              <td>${fmtN(r.purchase||0)}円</td><td>${fmtN(r.payout||0)}円</td>
+              <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}円</td>
+              <td style="color:${hit?'var(--green)':'var(--red)'}">${hit?'的中':'外れ'}</td>
+            </tr>`;
+          }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">該当なし</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+function resetCF() {
+  ['cf-y1','cf-y2','cf-loc','cf-surf','cf-grade','cf-dist','cf-bet'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cf-result').innerHTML = '';
+}
+
+// ===== HORSES PAGE =====
+function renderHorses() {
+  const races  = loadRaces();
+  const solos  = loadHorses();
+  const search = document.getElementById('horse-search').value.toLowerCase();
+  const map    = {};
+  const ensure = name => { if (!map[name]) map[name] = { name, entries: [] }; return map[name]; };
+
+  races.forEach(r => {
+    (r.horseMemos || []).forEach(h => {
+      if (!h.name) return;
+      ensure(h.name).entries.push({ type:'race', raceId:r.id, raceDate:r.date||'', raceName:r.raceName||'', raceLoc:r.location||'', memo:h });
+    });
+  });
+  solos.forEach(h => {
+    ensure(h.name).entries.push({ type:'solo', soloId:h.id, date:h.date||'', memo:h });
+  });
+
+  let list = Object.values(map);
+  if (search) list = list.filter(h => h.name.toLowerCase().includes(search));
+  list.sort((a,b) => a.name.localeCompare(b.name, 'ja'));
+
+  const el = document.getElementById('horse-list');
+  if (!list.length) { el.innerHTML = `<div class="empty"><div class="empty-icon">🐴</div><p>馬メモがありません<br>「＋ 馬を追加」で追加しましょう</p></div>`; return; }
+
+  el.innerHTML = list.map(h => {
+    const sorted = h.entries.slice().sort((a,b) => {
+      const da = a.type==='race' ? a.raceDate : a.date;
+      const db = b.type==='race' ? b.raceDate : b.date;
+      return (db||'').localeCompare(da||'');
+    });
+    const lm = sorted[0].memo;
+    const gc = lm.gender==='牡'?'g-m':lm.gender==='牝'?'g-f':'g-s';
+    const entries = sorted.map(e => {
+      const isSolo = e.type === 'solo';
+      const ref    = isSolo
+        ? `<span style="color:var(--blue);font-size:11px">📝 単独メモ</span>${e.date ? ' · '+e.date : ''}`
+        : `${e.raceDate} ${esc(e.raceLoc)} ${esc(e.raceName)}`;
+      const ctx = isSolo
+        ? JSON.stringify({ type:'solo', soloId: e.soloId })
+        : JSON.stringify({ type:'race', raceId: e.raceId, horseName: h.name });
+      return `<div class="horse-entry">
+        <div class="horse-entry-body">
+          <div class="horse-entry-ref ${isSolo?'horse-entry-solo':'horse-entry-race'}">${ref}</div>
+          ${e.memo.comment
+            ? `<div class="horse-entry-text">${esc(e.memo.comment)}</div>`
+            : `<div class="horse-entry-text" style="color:var(--text-light)">（コメントなし）</div>`}
+        </div>
+        <button class="btn btn-sm" style="background:#eee;flex-shrink:0" onclick="event.stopPropagation();openEditEntry(${esc(JSON.stringify(ctx))})">編集</button>
+      </div>`;
+    }).join('');
+    return `<div class="card horse-card">
+      <div class="horse-card-header" onclick="this.closest('.horse-card').classList.toggle('expanded')">
+        <div>
+          <span style="font-size:16px;font-weight:bold">${esc(h.name)}</span>
+          <span class="${gc}" style="font-size:13px;margin-left:8px">${lm.gender||''} ${lm.age?lm.age+'歳':''}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text-light)">${h.entries.length}件</span>
+          <span style="color:var(--text-light)">▾</span>
+        </div>
+      </div>
+      <div class="horse-entries">${entries}</div>
+    </div>`;
+  }).join('');
+}
+
+function openEditEntry(ctxJson) {
+  const ctx = JSON.parse(ctxJson);
+  if (ctx.type === 'solo') openHMModal({ type:'solo', soloId: ctx.soloId });
+  else openHMModal({ type:'race', raceId: ctx.raceId, horseName: ctx.horseName });
+}
+
+// ===== HORSE MEMO MODAL =====
+let hmCtx = null;
+
+function openHMModal(editCtx) {
+  hmCtx = editCtx || null;
+  const isEdit = !!editCtx;
+  document.getElementById('hm-title').textContent = isEdit ? '馬メモを編集' : '馬メモを追加';
+  document.getElementById('hm-del-btn').style.display = isEdit ? '' : 'none';
+  document.getElementById('hm-note').style.display = 'none';
+  document.getElementById('hm-date-grp').style.display = '';
+
+  if (isEdit && editCtx.type === 'solo') {
+    const h = loadHorses().find(x => x.id === editCtx.soloId);
+    if (!h) return;
+    document.getElementById('hm-name').value    = h.name || '';
+    document.getElementById('hm-age').value     = h.age  || '';
+    document.getElementById('hm-comment').value = h.comment || '';
+    document.getElementById('hm-date').value    = h.date || '';
+    const gEl = document.querySelector(`input[name="hm-gender"][value="${h.gender||'牡'}"]`);
+    if (gEl) gEl.checked = true;
+  } else if (isEdit && editCtx.type === 'race') {
+    const race = loadRaces().find(r => r.id === editCtx.raceId);
+    if (!race) return;
+    const memo = (race.horseMemos||[]).find(h => h.name === editCtx.horseName);
+    if (!memo) return;
+    document.getElementById('hm-name').value    = memo.name    || '';
+    document.getElementById('hm-age').value     = memo.age     || '';
+    document.getElementById('hm-comment').value = memo.comment || '';
+    document.getElementById('hm-date-grp').style.display = 'none';
+    const note = document.getElementById('hm-note');
+    note.style.display = '';
+    note.textContent = `レース紐付き: ${race.date||''} ${race.location||''} ${race.raceName||''}`;
+    const gEl = document.querySelector(`input[name="hm-gender"][value="${memo.gender||'牡'}"]`);
+    if (gEl) gEl.checked = true;
+  } else {
+    document.getElementById('hm-name').value    = '';
+    document.getElementById('hm-age').value     = '';
+    document.getElementById('hm-comment').value = '';
+    document.getElementById('hm-date').value    = new Date().toISOString().slice(0,10);
+    document.querySelector('input[name="hm-gender"][value="牡"]').checked = true;
+  }
+  document.getElementById('hm-modal').classList.add('open');
+}
+
+function closeHMModal() {
+  document.getElementById('hm-modal').classList.remove('open');
+  hmCtx = null;
+}
+
+function saveHM() {
+  const name    = document.getElementById('hm-name').value.trim();
+  const age     = parseInt(document.getElementById('hm-age').value) || null;
+  const gender  = document.querySelector('input[name="hm-gender"]:checked')?.value || '牡';
+  const comment = document.getElementById('hm-comment').value.trim();
+  const date    = document.getElementById('hm-date').value;
+  if (!name) { alert('馬名を入力してください'); return; }
+
+  if (hmCtx?.type === 'race') {
+    const races = loadRaces();
+    const race  = races.find(r => r.id === hmCtx.raceId);
+    if (race) {
+      const idx = (race.horseMemos||[]).findIndex(h => h.name === hmCtx.horseName);
+      if (idx !== -1) race.horseMemos[idx] = { ...race.horseMemos[idx], name, age, gender, comment };
+    }
+    saveRaces(races);
+  } else if (hmCtx?.type === 'solo') {
+    const hs  = loadHorses();
+    const idx = hs.findIndex(h => h.id === hmCtx.soloId);
+    if (idx !== -1) hs[idx] = { ...hs[idx], name, age, gender, comment, date };
+    saveHorses(hs);
+  } else {
+    const hs = loadHorses();
+    hs.push({ id: uid(), name, age, gender, comment, date });
+    saveHorses(hs);
+  }
+  closeHMModal();
+  renderHorses();
+}
+
+function deleteHM() {
+  if (!hmCtx) return;
+  showConfirm('このメモを削除しますか？', () => {
+    if (hmCtx.type === 'solo') {
+      saveHorses(loadHorses().filter(h => h.id !== hmCtx.soloId));
+    } else if (hmCtx.type === 'race') {
+      const races = loadRaces();
+      const race  = races.find(r => r.id === hmCtx.raceId);
+      if (race) race.horseMemos = (race.horseMemos||[]).filter(h => h.name !== hmCtx.horseName);
+      saveRaces(races);
+    }
+    closeHMModal();
+    renderHorses();
+  });
+}
+
+// ===== RACE MODAL =====
+let editingRaceId = null;
+
+function openRaceModal(raceId) {
+  editingRaceId = raceId || null;
+  const delBtn = document.getElementById('delete-btn');
+  if (raceId) {
+    const race = loadRaces().find(r => r.id === raceId);
+    if (!race) return;
+    document.getElementById('modal-title').textContent = 'レースを編集';
+    delBtn.style.display = '';
+    fillForm(race);
+  } else {
+    document.getElementById('modal-title').textContent = 'レースを追加';
+    delBtn.style.display = 'none';
+    clearForm();
+  }
+  document.getElementById('race-modal').classList.add('open');
+}
+function closeRaceModal() {
+  document.getElementById('race-modal').classList.remove('open');
+  editingRaceId = null;
+}
+function clearForm() {
+  document.getElementById('f-date').value     = new Date().toISOString().slice(0,10);
+  document.getElementById('f-location').value = '東京';
+  document.querySelector('input[name="surface"][value="芝"]').checked    = true;
+  document.querySelector('input[name="betType"][value="単勝"]').checked  = true;
+  document.getElementById('f-distance').value   = '';
+  document.getElementById('f-grade').value      = 'G1';
+  document.getElementById('f-race-name').value  = '';
+  document.getElementById('f-purchase').value   = '';
+  document.getElementById('f-payout').value     = '';
+  document.getElementById('f-pivot-rank').value = '';
+  document.getElementById('horse-rows').innerHTML = '';
+}
+function fillForm(r) {
+  document.getElementById('f-date').value     = r.date || '';
+  document.getElementById('f-location').value = r.location || '東京';
+  const surf = document.querySelector(`input[name="surface"][value="${r.surface}"]`);
+  if (surf) surf.checked = true;
+  document.getElementById('f-distance').value   = r.distance || '';
+  document.getElementById('f-grade').value      = r.grade    || 'G1';
+  document.getElementById('f-race-name').value  = r.raceName || '';
+  const bet = document.querySelector(`input[name="betType"][value="${r.betType}"]`);
+  if (bet) bet.checked = true;
+  document.getElementById('f-purchase').value   = r.purchase   || '';
+  document.getElementById('f-payout').value     = r.payout     || '';
+  document.getElementById('f-pivot-rank').value = r.pivotRank  || '';
+  document.getElementById('horse-rows').innerHTML = '';
+  (r.horseMemos || []).forEach(h => addHorseRow(h));
+}
+function addHorseRow(data) {
+  const id  = uid();
+  const div = document.createElement('div');
+  div.className   = 'horse-item';
+  div.dataset.hid = id;
+  div.innerHTML   = `
+    <div class="horse-item-header">
+      <span class="horse-item-name">馬メモ</span>
+      <button class="btn btn-sm" style="background:#eee" onclick="removeHorseRow('${id}')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>馬名 *</label><input type="text" class="h-name" placeholder="例：ディープインパクト" value="${esc(data?.name||'')}"></div>
+      <div class="form-group"><label>年齢</label><input type="number" class="h-age" placeholder="4" min="2" max="10" value="${data?.age||''}"></div>
+    </div>
+    <div class="form-group"><label>牡牝</label>
+      <div class="radio-group">
+        <label><input type="radio" name="gender-${id}" value="牡" ${!data?.gender||data?.gender==='牡'?'checked':''}> 牡</label>
+        <label><input type="radio" name="gender-${id}" value="牝" ${data?.gender==='牝'?'checked':''}> 牝</label>
+        <label><input type="radio" name="gender-${id}" value="セン" ${data?.gender==='セン'?'checked':''}> セン</label>
+      </div>
+    </div>
+    <div class="form-group"><label>コメント</label><textarea class="h-comment" placeholder="メモを入力...">${esc(data?.comment||'')}</textarea></div>`;
+  document.getElementById('horse-rows').appendChild(div);
+}
+function removeHorseRow(id) { document.querySelector(`[data-hid="${id}"]`)?.remove(); }
+
+function saveRace() {
+  const date = document.getElementById('f-date').value;
+  if (!date) { alert('日付を入力してください'); return; }
+  const horseMemos = [...document.querySelectorAll('#horse-rows .horse-item')].map(div => {
+    const hid = div.dataset.hid;
+    return { name: div.querySelector('.h-name')?.value.trim()||'', age: parseInt(div.querySelector('.h-age')?.value)||null, gender: div.querySelector(`input[name="gender-${hid}"]:checked`)?.value||'牡', comment: div.querySelector('.h-comment')?.value.trim()||'' };
+  }).filter(h => h.name);
+  const pv = document.getElementById('f-pivot-rank').value;
+  const data = {
+    date, location: document.getElementById('f-location').value,
+    surface:  document.querySelector('input[name="surface"]:checked')?.value || '芝',
+    distance: parseInt(document.getElementById('f-distance').value) || null,
+    grade:    document.getElementById('f-grade').value,
+    raceName: document.getElementById('f-race-name').value.trim(),
+    betType:  document.querySelector('input[name="betType"]:checked')?.value || '単勝',
+    purchase: parseFloat(document.getElementById('f-purchase').value) || 0,
+    payout:   parseFloat(document.getElementById('f-payout').value)   || 0,
+    pivotRank: pv ? parseInt(pv) : null,
+    horseMemos,
+  };
+  const races = loadRaces();
+  if (editingRaceId) {
+    const idx = races.findIndex(r => r.id === editingRaceId);
+    if (idx !== -1) races[idx] = { ...races[idx], ...data };
+  } else {
+    races.push({ id: uid(), ...data });
+  }
+  saveRaces(races);
+  closeRaceModal();
+  renderRaces();
+}
+
+function deleteCurrentRace() {
+  if (!editingRaceId) return;
+  showConfirm('このレースを削除しますか？', () => {
+    saveRaces(loadRaces().filter(r => r.id !== editingRaceId));
+    closeRaceModal();
+    renderRaces();
+  });
+}
+
+// ===== CONFIRM =====
+let confirmCb = null;
+function showConfirm(msg, cb) {
+  document.getElementById('confirm-msg').textContent = msg;
+  confirmCb = cb;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  confirmCb = null;
+}
+document.getElementById('confirm-ok').onclick = () => { if (confirmCb) confirmCb(); closeConfirm(); };
+document.getElementById('race-modal').addEventListener('click',  function(e){ if(e.target===this) closeRaceModal(); });
+document.getElementById('hm-modal').addEventListener('click',    function(e){ if(e.target===this) closeHMModal(); });
+document.getElementById('confirm-overlay').addEventListener('click', function(e){ if(e.target===this) closeConfirm(); });
+
+renderRaces();
+</script>
+</body>
+</html>
