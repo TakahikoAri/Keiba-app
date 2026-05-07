@@ -562,7 +562,7 @@ onAuthStateChanged(auth, user => {
     document.getElementById('user-name').textContent = user.displayName || user.email;
     document.getElementById('login-screen').style.display  = 'none';
     document.getElementById('loading-screen').style.display = 'flex';
-    document.getElementById('app-header').style.display    = '';
+    document.getElementById('app-header').style.display    = 'block';
     setupListeners();
   } else {
     currentUser = null;
