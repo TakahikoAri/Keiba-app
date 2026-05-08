@@ -437,7 +437,8 @@
         <div class="form-group">
           <label>馬券の種類</label>
           <div class="radio-group">
-            <label><input type="radio" name="yb-betType" value="単勝" checked> 単勝</label>
+            <label><input type="radio" name="yb-betType" value="" checked> なし</label>
+            <label><input type="radio" name="yb-betType" value="単勝"> 単勝</label>
             <label><input type="radio" name="yb-betType" value="複勝"> 複勝</label>
             <label><input type="radio" name="yb-betType" value="枠連"> 枠連</label>
             <label><input type="radio" name="yb-betType" value="馬連"> 馬連</label>
@@ -529,7 +530,8 @@
         <div class="form-group">
           <label>馬券の種類</label>
           <div class="radio-group">
-            <label><input type="radio" name="betType" value="単勝" checked> 単勝</label>
+            <label><input type="radio" name="betType" value="" checked> なし</label>
+            <label><input type="radio" name="betType" value="単勝"> 単勝</label>
             <label><input type="radio" name="betType" value="複勝"> 複勝</label>
             <label><input type="radio" name="betType" value="枠連"> 枠連</label>
             <label><input type="radio" name="betType" value="馬連"> 馬連</label>
@@ -796,8 +798,8 @@ function statRow(label, s) {
   const b = s.bal, rr = s.rr;
   return `<tr>
     <td>${label}</td>
-    <td>${fmtN(s.purchase)}円</td><td>${fmtN(s.payout)}円</td>
-    <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}円</td>
+    <td>${fmtN(s.purchase)}</td><td>${fmtN(s.payout)}</td>
+    <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}</td>
     <td style="color:${rr!=null?(rr>=100?'var(--green)':'var(--red)'):'inherit'}">${fmtPct(rr)}</td>
     <td>${s.hits}/${s.total}</td>
   </tr>`;
@@ -924,11 +926,15 @@ function calcStats(races) {
   const months = {};
   for (let m=1; m<=12; m++) months[String(m).padStart(2,'0')] = [];
   races.forEach(r => { const m=r.date?.slice(5,7); if(m&&months[m]) months[m].push(r); });
-  document.getElementById('month-tbody').innerHTML = Object.entries(months).map(([m,rs]) => statRow(parseInt(m)+'月', makeStat(rs))).join('');
+  document.getElementById('month-tbody').innerHTML = Array.from({length:12}, (_,i) => {
+    const key = String(i+1).padStart(2,'0');
+    return statRow((i+1)+'月', makeStat(months[key]||[]));
+  }).join('');
 
   const vm = {};
   races.forEach(r => { const g=vg(r.location||''); if(!vm[g]) vm[g]=[]; vm[g].push(r); });
-  document.getElementById('venue-tbody').innerHTML = [...CHUO,'地方','海外'].filter(v=>vm[v]).map(v=>statRow(v,makeStat(vm[v]))).join('');
+  const VENUE_ORDER = ['東京','中山','阪神','京都','中京','新潟','函館','札幌','福島','小倉','地方','海外'];
+  document.getElementById('venue-tbody').innerHTML = VENUE_ORDER.filter(v=>vm[v]).map(v=>statRow(v,makeStat(vm[v]))).join('');
 
   const gm = {};
   races.forEach(r => { const g=r.grade||''; if(!gm[g]) gm[g]=[]; gm[g].push(r); });
@@ -951,8 +957,8 @@ function calcStats(races) {
         const b=(r.payout||0)-(r.purchase||0), hit=(r.payout||0)>0;
         return `<tr>
           <td style="text-align:left">${r.date||''} ${esc(r.raceName||r.location||'')}</td>
-          <td>${fmtN(r.purchase||0)}円</td><td>${fmtN(r.payout||0)}円</td>
-          <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}円</td>
+          <td>${fmtN(r.purchase||0)}</td><td>${fmtN(r.payout||0)}</td>
+          <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}</td>
           <td style="color:${r.purchase?((r.payout||0)/r.purchase>=1?'var(--green)':'var(--red)'):'inherit'}">${r.purchase?fmtPct((r.payout||0)/r.purchase*100):'—'}</td>
           <td style="color:${hit?'var(--green)':'var(--red)'}">${hit?'的中':'外れ'}</td>
         </tr>`;
@@ -1007,8 +1013,8 @@ window.applyCF = function() {
             return `<tr>
               <td style="text-align:left;white-space:nowrap">${r.date||''}</td>
               <td style="text-align:left">${esc(r.raceName||'')} <span style="color:var(--text-light)">${r.location||''}</span></td>
-              <td>${fmtN(r.purchase||0)}円</td><td>${fmtN(r.payout||0)}円</td>
-              <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}円</td>
+              <td>${fmtN(r.purchase||0)}</td><td>${fmtN(r.payout||0)}</td>
+              <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}</td>
               <td style="color:${hit?'var(--green)':'var(--red)'}">${hit?'的中':'外れ'}</td>
             </tr>`;
           }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">該当なし</td></tr>'}</tbody>
@@ -1299,8 +1305,8 @@ window.renderYoso = function renderYoso() {
   document.getElementById('entries-textarea').value = (race.entries||[]).join('\n');
   renderYosoHorses(race);
 
-  const bt = document.querySelector(`input[name="yb-betType"][value="${race.betType}"]`);
-  (bt || document.querySelector('input[name="yb-betType"][value="単勝"]')).checked = true;
+  const bt = document.querySelector(`input[name="yb-betType"][value="${race.betType||''}"]`);
+  (bt || document.querySelector('input[name="yb-betType"][value=""]')).checked = true;
   document.getElementById('yb-purchase').value   = race.purchase||'';
   document.getElementById('yb-payout').value     = race.payout||'';
   document.getElementById('yb-pivot-rank').value = race.pivotRank||'';
@@ -1428,7 +1434,7 @@ window.saveYosoBet = async function() {
   try {
     await fsSetRace({
       ...race,
-      betType:   document.querySelector('input[name="yb-betType"]:checked')?.value||'単勝',
+      betType:   document.querySelector('input[name="yb-betType"]:checked')?.value||'',
       purchase:  parseFloat(document.getElementById('yb-purchase').value)||0,
       payout:    parseFloat(document.getElementById('yb-payout').value)||0,
       pivotRank: pv ? parseInt(pv) : null,
@@ -1470,7 +1476,7 @@ function clearForm() {
   document.getElementById('f-date').value     = new Date().toISOString().slice(0,10);
   document.getElementById('f-location').value = '東京';
   document.querySelector('input[name="surface"][value="芝"]').checked   = true;
-  document.querySelector('input[name="betType"][value="単勝"]').checked = true;
+  document.querySelector('input[name="betType"][value=""]').checked = true;
   ['f-distance','f-grade','f-race-name','f-purchase','f-payout','f-pivot-rank'].forEach(id => {
     const el = document.getElementById(id);
     el.value = id==='f-grade' ? 'G1' : '';
@@ -1486,8 +1492,8 @@ function fillForm(r) {
   document.getElementById('f-distance').value   = r.distance||'';
   document.getElementById('f-grade').value      = r.grade||'G1';
   document.getElementById('f-race-name').value  = r.raceName||'';
-  const bet = document.querySelector(`input[name="betType"][value="${r.betType}"]`);
-  if (bet) bet.checked = true;
+  const bet = document.querySelector(`input[name="betType"][value="${r.betType||''}"]`);
+  (bet || document.querySelector('input[name="betType"][value=""]')).checked = true;
   document.getElementById('f-purchase').value   = r.purchase||'';
   document.getElementById('f-payout').value     = r.payout||'';
   document.getElementById('f-pivot-rank').value = r.pivotRank||'';
@@ -1531,6 +1537,7 @@ window.saveRace = async function() {
   }).filter(h => h.name);
 
   const pv = document.getElementById('f-pivot-rank').value;
+  const existingEntries = editingRaceId ? (racesCache.find(r => r.id===editingRaceId)?.entries || []) : [];
   const data = {
     id: editingRaceId || uid(),
     date, location:document.getElementById('f-location').value,
@@ -1538,11 +1545,12 @@ window.saveRace = async function() {
     distance: parseInt(document.getElementById('f-distance').value)||null,
     grade:    document.getElementById('f-grade').value,
     raceName: document.getElementById('f-race-name').value.trim(),
-    betType:  document.querySelector('input[name="betType"]:checked')?.value||'単勝',
+    betType:  document.querySelector('input[name="betType"]:checked')?.value||'',
     purchase: parseFloat(document.getElementById('f-purchase').value)||0,
     payout:   parseFloat(document.getElementById('f-payout').value)||0,
     pivotRank:pv ? parseInt(pv) : null,
     horseMemos,
+    entries: existingEntries,
   };
   const btn = document.getElementById('save-race-btn');
   btn.disabled = true; btn.textContent = '保存中...';
