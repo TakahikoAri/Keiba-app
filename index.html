@@ -875,7 +875,6 @@ window.renderRaces = function renderRaces() {
           <div class="result-item"><span class="result-label">購入</span><span class="result-value">${fmtN(r.purchase||0)}円</span></div>
           <div class="result-item"><span class="result-label">払戻</span><span class="result-value ${hit?'positive':'neutral'}">${fmtN(r.payout||0)}円</span></div>
           <div class="result-item"><span class="result-label">収支</span><span class="result-value ${bal>0?'positive':bal<0?'negative':'neutral'}">${bal>=0?'+':''}${fmtN(bal)}円</span></div>
-          <div class="result-item"><span class="result-label">結果</span><span class="result-value ${hit?'hit':'miss'}">${hit?'的中':'外れ'}</span></div>
           ${pr ? `<div class="result-item"><span class="result-label">軸馬</span><span class="result-value">${rb}</span></div>` : ''}
         </div>
         ${r.horseMemos?.length ? `<div style="margin-top:6px;font-size:12px;color:var(--text-light)">🐴 ${r.horseMemos.map(h=>esc(h.name)).join('、')}</div>` : ''}
