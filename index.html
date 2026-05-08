@@ -1119,20 +1119,6 @@ window.clearHorseSearch = function() {
 };
 
 window.addMemoToHorse = function(horseName) {
-  // 既存の単独メモがあれば、それを編集モードで開き末尾に改行を追加
-  const existingSolo = horsesCache
-    .filter(h => h.name === horseName)
-    .sort((a,b) => (b.date||'').localeCompare(a.date||''))[0];
-  if (existingSolo) {
-    openHMModal({ type:'solo', soloId: existingSolo.id });
-    const commentEl = document.getElementById('hm-comment');
-    if (commentEl.value) commentEl.value = commentEl.value + '\n';
-    // カーソルを末尾に移動
-    commentEl.focus();
-    commentEl.setSelectionRange(commentEl.value.length, commentEl.value.length);
-    return;
-  }
-  // 単独メモがない場合は新規作成
   openHMModal(null);
   document.getElementById('hm-name').value = horseName;
   const profile = getHorseProfile(horseName);
@@ -1305,9 +1291,15 @@ window.saveHM = async function() {
           }
         }
       } else {
-        const existing = horsesCache.find(h => h.name === name && h.date === date);
-        if (existing) {
-          const updated = { ...existing, name, age, gender, comment, date };
+        // 同じ馬名の既存単独メモがあれば末尾に追記、なければ新規作成
+        const existingSolo = horsesCache
+          .filter(h => h.name === name)
+          .sort((a,b) => (b.date||'').localeCompare(a.date||''))[0];
+        if (existingSolo) {
+          const appendedComment = existingSolo.comment
+            ? existingSolo.comment + '\n' + comment
+            : comment;
+          const updated = { ...existingSolo, age, gender, comment: appendedComment };
           await fsSetHorse(updated);
           patchHorseCache(updated);
         } else {
