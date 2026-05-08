@@ -834,9 +834,12 @@ window.showPage = function(p) {
   if (p==='horses') renderHorses();
 };
 
+// 馬券情報なし（メモ専用）かどうか
+const isMemoOnly = r => !(r.purchase > 0) && !(r.payout > 0);
+
 // ===== RACES PAGE =====
 window.renderRaces = function renderRaces() {
-  const races  = racesCache;
+  const races  = racesCache.filter(r => !isMemoOnly(r));  // メモ専用レースは除外
   const search = document.getElementById('search-input').value.toLowerCase();
   const ySel   = document.getElementById('filter-year');
   const years  = [...new Set(races.map(r => r.date?.slice(0,4)).filter(Boolean))].sort().reverse();
@@ -885,7 +888,7 @@ window.renderRaces = function renderRaces() {
 let selectedYear = null, selectedStatTab = 'month';
 
 window.renderStats = function renderStats() {
-  const races = racesCache;
+  const races = racesCache.filter(r => !isMemoOnly(r));  // メモ専用レースは除外
   const years = [...new Set(races.map(r => r.date?.slice(0,4)).filter(Boolean))].sort().reverse();
   if (!selectedYear || (!years.includes(selectedYear) && selectedYear !== 'all'))
     selectedYear = years[0] || String(new Date().getFullYear());
@@ -984,7 +987,7 @@ function calcStats(races) {
 
 // ===== CUSTOM FILTER =====
 window.applyCF = function() {
-  const races = racesCache;
+  const races = racesCache.filter(r => !isMemoOnly(r));  // メモ専用レースは除外
   const y1=document.getElementById('cf-y1').value, y2=document.getElementById('cf-y2').value;
   const lv=document.getElementById('cf-loc').value, sv=document.getElementById('cf-surf').value;
   const gv=document.getElementById('cf-grade').value, dv=document.getElementById('cf-dist').value;
@@ -1116,8 +1119,28 @@ window.clearHorseSearch = function() {
 };
 
 window.addMemoToHorse = function(horseName) {
+  // 既存の単独メモがあれば、それを編集モードで開き末尾に改行を追加
+  const existingSolo = horsesCache
+    .filter(h => h.name === horseName)
+    .sort((a,b) => (b.date||'').localeCompare(a.date||''))[0];
+  if (existingSolo) {
+    openHMModal({ type:'solo', soloId: existingSolo.id });
+    const commentEl = document.getElementById('hm-comment');
+    if (commentEl.value) commentEl.value = commentEl.value + '\n';
+    // カーソルを末尾に移動
+    commentEl.focus();
+    commentEl.setSelectionRange(commentEl.value.length, commentEl.value.length);
+    return;
+  }
+  // 単独メモがない場合は新規作成
   openHMModal(null);
   document.getElementById('hm-name').value = horseName;
+  const profile = getHorseProfile(horseName);
+  if (profile.gender) {
+    const g = document.querySelector(`input[name="hm-gender"][value="${profile.gender}"]`);
+    if (g) g.checked = true;
+  }
+  if (profile.age) document.getElementById('hm-age').value = profile.age;
 };
 
 window.openEditEntry = function(ctxJson) {
@@ -1191,9 +1214,12 @@ window.openHMModal = function(editCtx) {
       if (g) g.checked = true;
     } else {
       document.getElementById('hm-title').textContent = '馬メモを追加';
-      document.getElementById('hm-age').value     = '';
       document.getElementById('hm-comment').value = '';
-      document.querySelector('input[name="hm-gender"][value="牡"]').checked = true;
+      const profile2 = getHorseProfile(editCtx.horseName);
+      document.getElementById('hm-age').value = profile2.age||'';
+      const gv2 = profile2.gender||'牡';
+      const gEl2 = document.querySelector(`input[name="hm-gender"][value="${gv2}"]`);
+      if (gEl2) gEl2.checked = true;
     }
   } else {
     document.getElementById('hm-title').textContent = '馬メモを追加';
@@ -1221,6 +1247,17 @@ window.saveHM = async function() {
   const comment = document.getElementById('hm-comment').value.trim();
   const date    = document.getElementById('hm-date').value;
   if (!name) { alert('馬名を入力してください'); return; }
+  // 保存後に即時反映するためのキャッシュ更新ヘルパー
+  const patchRaceCache = (updated) => {
+    const i = racesCache.findIndex(r => r.id === updated.id);
+    if (i !== -1) racesCache[i] = updated;
+  };
+  const patchHorseCache = (updated) => {
+    const i = horsesCache.findIndex(h => h.id === updated.id);
+    if (i !== -1) horsesCache[i] = updated;
+    else horsesCache.push(updated);
+  };
+
   try {
     if (hmCtx?.type==='race') {
       const race = racesCache.find(r => r.id===hmCtx.raceId);
@@ -1231,10 +1268,15 @@ window.saveHM = async function() {
         if (idx !== -1) updated.horseMemos[idx] = { ...updated.horseMemos[idx], name, age, gender, comment };
         else updated.horseMemos.push({ name: hmCtx.horseName, age, gender, comment });
         await fsSetRace(updated);
+        patchRaceCache(updated);  // ローカルキャッシュ即時更新
       }
     } else if (hmCtx?.type==='solo') {
       const h = horsesCache.find(x => x.id===hmCtx.soloId);
-      if (h) await fsSetHorse({ ...h, name, age, gender, comment, date });
+      if (h) {
+        const updated = { ...h, name, age, gender, comment, date };
+        await fsSetHorse(updated);
+        patchHorseCache(updated);
+      }
     } else {
       const hmType = document.querySelector('input[name="hm-type"]:checked')?.value || 'solo';
       if (hmType === 'race') {
@@ -1243,12 +1285,14 @@ window.saveHM = async function() {
           const raceDate = document.getElementById('hm-race-date').value;
           if (!raceDate) { alert('日付を入力してください'); return; }
           const raceName = document.getElementById('hm-race-name').value.trim();
-          await fsSetRace({
+          const newRace = {
             id: uid(), date: raceDate, raceName,
             location:'', surface:'芝', distance:null, grade:'',
-            betType:'単勝', purchase:0, payout:0, pivotRank:null,
-            horseMemos: [{ name, age, gender, comment }],
-          });
+            betType:'', purchase:0, payout:0, pivotRank:null,
+            horseMemos: [{ name, age, gender, comment }], entries:[],
+          };
+          await fsSetRace(newRace);
+          racesCache.push(newRace);
         } else {
           const race = racesCache.find(r => r.id===raceId);
           if (race) {
@@ -1257,15 +1301,27 @@ window.saveHM = async function() {
             if (idx !== -1) updated.horseMemos[idx] = { ...updated.horseMemos[idx], name, age, gender, comment };
             else updated.horseMemos.push({ name, age, gender, comment });
             await fsSetRace(updated);
+            patchRaceCache(updated);
           }
         }
       } else {
         const existing = horsesCache.find(h => h.name === name && h.date === date);
-        if (existing) await fsSetHorse({ ...existing, name, age, gender, comment, date });
-        else          await fsSetHorse({ id: uid(), name, age, gender, comment, date });
+        if (existing) {
+          const updated = { ...existing, name, age, gender, comment, date };
+          await fsSetHorse(updated);
+          patchHorseCache(updated);
+        } else {
+          const newHorse = { id: uid(), name, age, gender, comment, date };
+          await fsSetHorse(newHorse);
+          horsesCache.push(newHorse);
+        }
       }
     }
     closeHMModal();
+    // Firestore snapshot を待たず即時再描画
+    if (currentPage === 'yoso')   renderYoso();
+    else if (currentPage === 'races')  renderRaces();
+    else if (currentPage === 'horses') renderHorses();
   } catch(e) { console.error(e); alert('保存に失敗しました: '+e.message); }
 };
 
@@ -1286,6 +1342,22 @@ window.deleteHM = function() {
     } catch(e) { console.error(e); alert('削除に失敗しました: '+e.message); }
   });
 };
+
+// ===== HORSE PROFILE HELPER =====
+// 馬名に紐づく最新の性別・年齢を返す
+function getHorseProfile(name) {
+  // 単独メモから検索（日付が新しい順）
+  const solos = horsesCache
+    .filter(h => h.name === name && h.gender)
+    .sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (solos.length) return { gender: solos[0].gender, age: solos[0].age||null };
+  // レース紐づきメモから検索（日付が新しい順）
+  const raceMemos = racesCache
+    .flatMap(r => (r.horseMemos||[]).filter(h => h.name===name && h.gender).map(h => ({ ...h, date: r.date||'' })))
+    .sort((a,b) => b.date.localeCompare(a.date));
+  if (raceMemos.length) return { gender: raceMemos[0].gender, age: raceMemos[0].age||null };
+  return { gender: null, age: null };
+}
 
 // ===== YOSO PAGE =====
 let yosoRaceId = null;
@@ -1329,19 +1401,12 @@ window.renderYoso = function renderYoso() {
 }
 
 function memoSectionHTML(dm, label, colorVar, bgColor, onclickFn) {
-  const gc = dm.gender==='牡'?'g-m':dm.gender==='牝'?'g-f':'g-s';
-  const infoLine = dm.gender
-    ? `<span class="${gc}" style="font-size:12px">${dm.gender}${dm.age?' '+dm.age+'歳':''}</span>`
-    : '';
   const comment = dm.comment
     ? `<div class="yoso-memo-comment">${esc(dm.comment)}</div>`
     : `<div style="font-size:12px;color:var(--text-light);margin-top:2px">（コメントなし）</div>`;
   return `<div class="yoso-memo-section" onclick="${onclickFn}">
     <div class="yoso-memo-section-header">
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:11px;color:${colorVar};background:${bgColor};border-radius:4px;padding:1px 6px;font-weight:bold">${label}</span>
-        ${infoLine}
-      </div>
+      <span style="font-size:11px;color:${colorVar};background:${bgColor};border-radius:4px;padding:1px 6px;font-weight:bold">${label}</span>
       <span style="color:var(--text-light);font-size:16px">›</span>
     </div>
     ${comment}
@@ -1388,10 +1453,16 @@ function renderYosoHorses(race) {
       if (!memo) addBtns.push(`<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="event.stopPropagation();yosoOpenRaceMemo('${safeN}')">＋ このレース</button>`);
       if (!solo) addBtns.push(`<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="event.stopPropagation();yosoOpenSoloMemo('${safeN}')">＋ 単独メモ</button>`);
 
+      const profile = getHorseProfile(name);
+      const gc = profile.gender==='牡'?'g-m':profile.gender==='牝'?'g-f':'g-s';
+      const profileLine = profile.gender
+        ? `<span class="${gc}" style="font-size:12px;margin-left:4px">${profile.gender}${profile.age?' '+profile.age+'歳':''}</span>`
+        : '';
       return `<div class="yoso-horse-item" style="flex-direction:column;align-items:stretch;cursor:default">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
           <div class="yoso-horse-num">${i+1}</div>
           <div class="yoso-horse-name">${esc(name)}</div>
+          ${profileLine}
         </div>
         <div style="padding-left:34px;display:flex;flex-direction:column;gap:6px">
           ${sections.join('')}
@@ -1437,6 +1508,12 @@ window.yosoOpenSoloMemo = function(name) {
   } else {
     openHMModal(null);
     document.getElementById('hm-name').value = name;
+    const profile = getHorseProfile(name);
+    if (profile.gender) {
+      const g = document.querySelector(`input[name="hm-gender"][value="${profile.gender}"]`);
+      if (g) g.checked = true;
+    }
+    if (profile.age) document.getElementById('hm-age').value = profile.age;
   }
 };
 
