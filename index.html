@@ -865,7 +865,7 @@ window.renderRaces = function renderRaces() {
     return `<div class="card race-card" onclick="openRaceModal('${r.id}')">
       <div class="card-body">
         <div class="race-meta" style="margin-bottom:6px">
-          <span style="font-size:12px;color:var(--text-light)">${r.date||''} ${r.location||''}</span>
+          <span style="font-size:12px;color:var(--text-light)">${esc(r.date)||''} ${esc(r.location)||''}</span>
           ${surfBadge(r.surface, r.distance)}
           ${r.grade   ? `<span class="badge badge-grade">${r.grade}</span>` : ''}
           ${r.betType ? `<span class="badge badge-bet">${r.betType}</span>` : ''}
@@ -975,7 +975,7 @@ function calcStats(races) {
     ? g1.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(r=>{
         const b=(r.payout||0)-(r.purchase||0), hit=(r.payout||0)>0;
         return `<tr>
-          <td style="text-align:left">${r.date||''} ${esc(r.raceName||r.location||'')}</td>
+          <td style="text-align:left">${esc(r.date)||''} ${esc(r.raceName||r.location||'')}</td>
           <td>${fmtN(r.purchase||0)}</td><td>${fmtN(r.payout||0)}</td>
           <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}</td>
           <td style="color:${r.purchase?((r.payout||0)/r.purchase>=1?'var(--green)':'var(--red)'):'inherit'}">${r.purchase?fmtPct((r.payout||0)/r.purchase*100):'—'}</td>
@@ -1030,8 +1030,8 @@ window.applyCF = function() {
           <tbody>${f.length ? f.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(r=>{
             const b=(r.payout||0)-(r.purchase||0),hit=(r.payout||0)>0;
             return `<tr>
-              <td style="text-align:left;white-space:nowrap">${r.date||''}</td>
-              <td style="text-align:left">${esc(r.raceName||'')} <span style="color:var(--text-light)">${r.location||''}</span></td>
+              <td style="text-align:left;white-space:nowrap">${esc(r.date)||''}</td>
+              <td style="text-align:left">${esc(r.raceName||'')} <span style="color:var(--text-light)">${esc(r.location)||''}</span></td>
               <td>${fmtN(r.purchase||0)}</td><td>${fmtN(r.payout||0)}</td>
               <td style="color:${b>0?'var(--green)':b<0?'var(--red)':'inherit'}">${b>=0?'+':''}${fmtN(b)}</td>
               <td style="color:${hit?'var(--green)':'var(--red)'}">${hit?'的中':'外れ'}</td>
@@ -1083,11 +1083,11 @@ window.renderHorses = function renderHorses() {
       const isSolo = e.type==='solo';
       const ref    = isSolo
         ? `<span style="color:var(--blue);font-size:11px">📝 単独メモ</span>${e.date?' · '+e.date:''}`
-        : `${e.raceDate} ${esc(e.raceLoc)} ${esc(e.raceName)}`;
+        : `${esc(e.raceDate)} ${esc(e.raceLoc)} ${esc(e.raceName)}`;
       const ctxJson = isSolo
         ? JSON.stringify({ type:'solo', soloId:e.soloId })
         : JSON.stringify({ type:'race', raceId:e.raceId, horseName:h.name });
-      const safeCtx = ctxJson.replace(/"/g, '&quot;');
+      const safeCtx = ctxJson.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
       return `<div class="horse-entry">
         <div class="horse-entry-body">
           <div class="horse-entry-ref ${isSolo?'horse-entry-solo':'horse-entry-race'}">${ref}</div>
@@ -1142,7 +1142,7 @@ function hmPopulateRaceSelect() {
   const sel = document.getElementById('hm-race-select');
   const sorted = [...racesCache].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   sel.innerHTML = '<option value="new">＋ 新しいレースを作成</option>' +
-    sorted.map(r => `<option value="${r.id}">${r.date||''} ${r.location||''} ${esc(r.raceName||'')}</option>`).join('');
+    sorted.map(r => `<option value="${r.id}">${esc(r.date)||''} ${esc(r.location)||''} ${esc(r.raceName||'')}</option>`).join('');
   sel.value = 'new';
   document.getElementById('hm-new-race-grp').style.display = '';
   document.getElementById('hm-race-date').value = new Date().toISOString().slice(0,10);
@@ -1358,7 +1358,7 @@ window.renderYoso = function renderYoso() {
   const sel    = document.getElementById('yoso-race-select');
   const sorted = [...racesCache].sort((a,b) => (b.date||'').localeCompare(a.date||''));
   sel.innerHTML = '<option value="">-- レースを選択 --</option>' +
-    sorted.map(r => `<option value="${r.id}"${r.id===yosoRaceId?' selected':''}>${r.date||''} ${r.location||''} ${esc(r.raceName||'（名前なし）')}</option>`).join('');
+    sorted.map(r => `<option value="${r.id}"${r.id===yosoRaceId?' selected':''}>${esc(r.date)||''} ${esc(r.location)||''} ${esc(r.raceName||'（名前なし）')}</option>`).join('');
 
   const race    = yosoRaceId ? racesCache.find(r => r.id===yosoRaceId) : null;
   const content = document.getElementById('yoso-content');
@@ -1373,7 +1373,7 @@ window.renderYoso = function renderYoso() {
 
   document.getElementById('yoso-race-info').innerHTML = `
     <div class="race-meta" style="margin-bottom:4px">
-      <span style="font-size:12px;color:var(--text-light)">${race.date||''} ${race.location||''}</span>
+      <span style="font-size:12px;color:var(--text-light)">${esc(race.date)||''} ${esc(race.location)||''}</span>
       ${surfBadge(race.surface, race.distance)}
       ${race.grade ? `<span class="badge badge-grade">${race.grade}</span>` : ''}
     </div>
