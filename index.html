@@ -37,6 +37,8 @@
   .header-user  { display: flex; align-items: center; gap: 8px; }
   .user-avatar  { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); object-fit: cover; }
   .user-name    { font-size: 12px; color: rgba(255,255,255,0.9); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-switch   { padding: 4px 10px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: #fff; font-size: 11px; cursor: pointer; }
+  .btn-switch:hover { background: rgba(255,255,255,0.28); }
   .btn-logout   { padding: 4px 10px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: #fff; font-size: 11px; cursor: pointer; }
   .btn-logout:hover { background: rgba(255,255,255,0.28); }
   nav { display: flex; }
@@ -235,6 +237,7 @@
     <div class="header-user">
       <img id="user-avatar" class="user-avatar" src="" alt="">
       <span id="user-name" class="user-name"></span>
+      <button class="btn-switch" onclick="switchAccount()">切り替え</button>
       <button class="btn-logout" onclick="logout()">ログアウト</button>
     </div>
   </div>
@@ -696,6 +699,19 @@ window.signInGoogle = async () => {
 
 window.logout = () => {
   showConfirm('ログアウトしますか？', () => signOut(auth));
+};
+
+window.switchAccount = async () => {
+  try {
+    await signOut(auth);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    if (e.code !== 'auth/popup-closed-by-user') {
+      console.error(e);
+    }
+  }
 };
 
 function setupListeners() {
